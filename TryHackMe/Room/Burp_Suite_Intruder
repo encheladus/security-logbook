@@ -1,0 +1,105 @@
+---
+title: "Burp Intruder — TryHackMe"
+date: "2025-09-28"
+platform: "TryHackMe"
+type: "Classroom"
+scope: "lab"
+tags: ["tryhackme","classroom","burp","intruder","fuzzing","bruteforce","csrf","macros","session-handling"]
+---
+
+# Burp Intruder — TryHackMe
+**Date:** 2025-09-28  
+**Type:** Classroom  
+**Status:** Done
+
+---
+
+## 1) Context
+Intruder automates HTTP fuzzing/bruteforce: mark positions in a request, feed those slots with lists or generators, choose an attack type, run and observe. The benefit: stay **inside Burp** (preprocessing, encoding, session/CSRF handling) for precise, reproducible tests.
+
+## 2) Starting hypothesis
+Deeply understand how to pick the right **attack type**, handle **rotating tokens** (CSRF/session) via **Macros + Session Handling Rules**, and use Positions/Payloads/Processing/Encoding effectively.
+
+## 3) Tools used
+- Burp Suite **Intruder** (Positions, Payloads, Resource Pool, Settings)  
+- Burp **Proxy** (capture & “Send to Intruder” `Ctrl+I`)  
+- **Macros + Session Handling Rules** to refresh CSRF & cookies  
+- Wordlists / built-in generators
+
+## 4) Approach (high-level)
+1. **Positions**: mark the smallest useful unit (`§…§`) — parameter, JSON field, specific cookie.  
+2. **Payloads**: load lists/generators, configure settings, add **Payload Processing** (prefix/suffix, regex, base64) and set **Encoding** (URL-encode if needed).  
+3. **Attack type**:
+   - **Sniper** → single field at a time (precise discovery).  
+   - **Battering Ram** → same value everywhere.  
+   - **Pitchfork** → aligned lists in parallel (e.g., user:pass).  
+   - **Cluster Bomb** → cartesian product (exhaustive; compute volume first).  
+4. **Rotating tokens**: Macro to fetch token/cookie → Session Rule “Run macro before request” → *Update only* required fields/cookies.  
+5. **Run small → analyze → scale** (avoid noise/WAF).
+
+## 5) Results / evidence (sanitised)
+- Clean positions (manual selection) = readable results, fewer false positives.  
+- Attack modes validated: Sniper for focused discovery, Pitchfork for pairs, Cluster Bomb for controlled combinations.  
+- **Macro + Rule** worked: refreshed **loginToken** + **session** cookie before each attempt → expected 302 responses (proof tokens were valid). No sensitive data retained.
+
+## 6) Recommended remediation
+*(defensive notes for reports)*  
+- Implement robust **CSRF** checks and strict server-side verification.  
+- Rate-limit attempts, implement **lockout** and CAPTCHAs where appropriate.  
+- Detect Intruder-like patterns (bursts, param variation).  
+- Normalize/validate all inputs; log & alert on auth anomalies.
+
+## 7) Lessons learned
+- Intruder = **integrated fuzzing**, ideal for stateful flows (tokens, sessions) thanks to Macros/Rules.  
+- **Precision of Positions** determines test quality.  
+- **Payload Processing/Encoding** avoids external hacks and reduces errors.  
+- Start **Sniper**, then use Pitchfork/Battering Ram/Cluster Bomb as the field mapping requires.  
+- Always **estimate** request count for Cluster Bomb.
+
+## 8) Links / resources
+- TryHackMe — Junior Pentester (Intruder)  
+- PortSwigger Docs — Intruder, Macros & Session Handling Rules  
+- Wordlists (SecLists) for payloads  
+- (Link to detailed Notion note)
+
+---
+
+> **Snippet**
+> 
+> ```
+> Intruder quick checklist & recipes
+> 
+> 1) Workflow
+> - Proxy → Send to Intruder (Ctrl+I)
+> - Positions: Clear Auto, add § on the exact token
+> - Payloads: load list(s) / generator(s)
+> - Processing: (optional) prefix/suffix, regex replace, base64
+> - Encoding: URL-encode if required, otherwise disable
+> - Settings: greps, redirects; run a small test (2–10 items)
+> 
+> 2) Attack type (quick pick)
+> - Sniper        : single param / precise discovery
+> - Battering Ram : same value across all positions
+> - Pitchfork     : aligned parallel lists (user:pass)
+> - Cluster Bomb  : all combinations (watch volume)
+> 
+> 3) Recipe “Rotating tokens (CSRF/session)”
+> - Capture GET /login/ (returns token/cookie)
+> - Settings → Sessions → Macro: “GetLoginTokens” (execute the GET)
+> - Session Handling Rule:
+>   • Scope: Tool = Intruder, Target = in-scope
+>   • Action: Run Macro (GetLoginTokens)
+>   • Update only parameters: loginToken
+>   • Update only cookies: session
+> - Test: small run → expect 302 (otherwise debug names/scope)
+> 
+> 4) Best practices
+> - Mark the smallest unit (reduces noise)
+> - Start with Sniper; change mode as needed
+> - Calculate #requests (Cluster Bomb multiplies)
+> - Respect scope and throttle against real targets
+> 
+> One-liner:
+> Intruder = precise fuzzing + dynamic session/CSRF handling,
+> all without leaving Burp.
+> ```

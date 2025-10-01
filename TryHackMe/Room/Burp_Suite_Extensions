@@ -1,0 +1,88 @@
+---
+title: "Burp — Extensions — TryHackMe"
+date: "2025-09-29"
+platform: "TryHackMe"
+type: "Classroom"
+scope: "lab"
+tags: ["tryhackme","classroom","burp","extensions","bapp","jython","jruby","extender-api","request-timer"]
+---
+
+# Burp — Extensions (BApp, Jython, Extender API)
+**Date:** 2025-09-29  
+**Type:** Classroom  
+**Status:** Done
+
+---
+
+## 1) Context
+Burp can be extended via **extensions** (native Java, Python via **Jython**, Ruby via **JRuby**) that hook into the **Extender API**. You can install ready-made modules from the **BApp Store** or write custom tools (loggers, payload processors, scanners, UI components).
+
+## 2) Starting hypothesis
+Explore how extensions turn Burp into a customizable platform, when to use BApps vs writing your own extension, and how to configure Jython for Python-based modules.
+
+## 3) Tools used
+- Burp **Extensions** (load .jar/.py/.rb, enable/disable, Output/Errors, load order)  
+- **BApp Store** (example: *Request Timer*)  
+- **Jython standalone JAR** (for .py extensions)  
+- **Extender API** (interfaces like `IHttpListener`, `IScannerCheck`, `IMessageEditorTabFactory`)
+
+## 4) Approach (high-level)
+1. Explore the **Extensions** tab (load .jar/.py/.rb, check logs/errors, adjust load order).  
+2. Install from **BApp Store** (e.g., *Request Timer* to measure response times).  
+3. Configure **Jython**: Extensions → Extension settings → Python environment → point to the Jython JAR before adding .py files.  
+4. Review the **API** (APIs tab) to identify hooks needed for the task (HTTP listeners, UI, scanner checks, editors).  
+5. Best practices: extensions run with high privileges — prefer trusted BApps, audit code when possible, test with sample traffic, control load order.
+
+## 5) Results / evidence (sanitised)
+- **BApp installed** (*Request Timer*): enabled and functional (logs visible in Output); useful to confirm **timing oracles** (e.g., blind username checks).  
+- **Jython configured**: Python extensions load correctly; noted Python 2.x compatibility constraints.  
+- **Extender API**: identified useful interfaces for POCs (e.g., `IHttpListener` for logging/modifying requests).  
+*No sensitive data retained; captures limited to lab context.*
+
+## 6) Recommended remediation / governance
+- Extension policy: enable only **trusted** BApps, version and document installed extensions.  
+- Separate environments: avoid unvetted extensions in sensitive contexts.  
+- Log extension errors and monitor side effects (unexpected request modifications).  
+- Keep Burp & extensions updated; remove unused modules.
+
+## 7) Lessons learned
+- **BApp Store** provides quick wins (timers, formatters, helpers) without coding.  
+- **Jython** is required for .py extensions; some Python 3 features may not be supported.  
+- **Load order** matters when multiple extensions touch the same requests.  
+- **Extender API** enables bespoke tooling; start small (simple logger) and iterate.
+
+## 8) Links / resources
+- TryHackMe — Junior Pentester (Burp Extensions)  
+- PortSwigger Docs — Extender / BApp Store / Extender API  
+- (Link to detailed Notion note)
+
+---
+
+> **Snippet**
+> 
+> ```
+> Burp Extensions — quick checklist
+> 
+> Install a BApp:
+> 1) Extensions → BApp Store → search → Install
+> 2) Extensions list → Enable → check Output/Errors
+> 
+> Python (Jython):
+> 1) Download Jython standalone JAR
+> 2) Extensions → Extension settings → Python environment → point to the JAR
+> 3) Extensions → Add (.py) → check Output/Errors
+> 
+> Minimal dev (POC):
+> - Implement an IHttpListener (Java/Jython) to log requests
+> - Load the extension → test with small traffic → observe logs
+> - Adjust Up/Down order if multiple extensions modify messages
+> 
+> Security:
+> - Extensions run in-process → load only trusted code
+> - Audit and prune regularly; avoid unnecessary heavy libraries
+> 
+> One-liner:
+> BApp = quick wins, Jython = prototype in Python, Extender API = custom tooling — with disciplined installation and load-order control.
+> ```
+> 
+> **Disclaimer:** work shown here is for learning in authorised labs only. Do not apply techniques to systems without explicit permission.

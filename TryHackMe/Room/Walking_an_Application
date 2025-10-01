@@ -1,0 +1,69 @@
+---
+title: "Walking an Application — TryHackMe"
+date: "2025-09-19"
+platform: "TryHackMe"
+type: "Classroom"
+scope: "lab"
+tags: ["tryhackme","classroom","web-app","devtools","manual-audit"]
+---
+
+# Walking an Application — TryHackMe
+**Date:** 2025-09-19  
+**Type:** Classroom  
+**Statut:** Done
+
+---
+
+## 1) Contexte
+This room teaches the basics of conducting a web-app audit using only the browser's built-in tools. It emphasises manual inspection as a complement to automation.
+
+## 2) Hypothèse de départ
+I expected to learn how to better use browser devtools as a first manual step into pentesting and to spot issues automation often misses.
+
+## 3) Outils utilisés
+- Browser Developer Tools (Inspector / Elements, Sources/Debugger, Network)
+- Page source view (`view-source:`)
+- Manual exploration (no external tooling for the exercises)
+
+## 4) Approche (haut niveau)
+1. Explore the application as a user and map features (Feature | URL | Summary).
+2. Inspect page source to identify frameworks, external JS/CSS and possible source-maps.
+3. Use Inspector to manipulate DOM/CSS and reveal hidden elements.
+4. Use the Debugger/Sources to pretty-print, set breakpoints, step through JS, and inspect runtime variables.
+5. Monitor Network to capture XHR/fetch calls, headers, cookies and storage usage.
+6. Combine these techniques to pause before submissions, tamper payloads, and test client-side logic.
+
+## 5) Résultats / preuve (sanitisé)
+- Confirmed that manual inspection reveals hidden endpoints, insecure tokens in storage, and event handlers that introduce client-side logic flaws.
+- Example exercise: identified framework and an "admin note" link that initially appeared to be a flag but required re-evaluation — solved by stepping back and following the intended flow.
+
+## 6) Remédiation recommandée
+- Avoid exposing sensitive tokens in localStorage/sessionStorage; use secure, HttpOnly cookies where appropriate.
+- Harden client-side code: validate input server-side and do not rely on client-side checks for security decisions.
+- Remove or protect debug/source-map assets in production.
+- Implement strict access controls and server-side verification for privileged endpoints.
+- Regularly scan for outdated framework versions and apply updates.
+
+## 7) Leçons apprises
+- Manual browser inspection finds logic flaws and client-side issues that automated scanners miss.
+- DevTools (Inspector, Debugger, Network) are powerful pentesting tools — learn their advanced features (conditional breakpoints, XHR breakpoints, local overrides).
+- Framework/version discovery is a quick win to focus vulnerability research.
+- When you think you found the flag/answer, pause and re-check the full flow — quick dopamine-driven assumptions lead to mistakes.
+- Combine manual inspection with automation for best coverage.
+
+## 8) Liens / ressources
+- TryHackMe — Walking an Application (room)
+- Browser DevTools documentation (Chrome / Firefox)
+- Guides: JS source-maps, secure storage practices, and safe release processes
+
+---
+
+> **Snippet**
+> 
+> ```
+> Walk an App = Map features → URL → short summary (Feature | URL | Summary)
+> DevTools: Inspector = HTML/CSS (live DOM edits) | Sources/Debugger = JS (pretty-print, breakpoints, watch) | Network = requests/responses, headers, cookies
+> Practical checks: locate frameworks & versions, inspect JS/event handlers, pause before form submission to tamper payloads
+> Quick wins: hidden endpoints, insecure tokens in storage, outdated frameworks, misconfigured auth/headers
+> Manual inspection finds logic flaws automation misses — use both.
+> ```

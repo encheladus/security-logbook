@@ -1,0 +1,71 @@
+---
+title: "Subdomain Enumeration — TryHackMe"
+date: "2025-09-20"
+platform: "TryHackMe"
+type: "Classroom"
+scope: "lab"
+tags: ["tryhackme","classroom","subdomains","osint","dns","ffuf","enumeration"]
+---
+
+# Subdomain Enumeration — TryHackMe
+**Date:** 2025-09-20  
+**Type:** Classroom  
+**Statut:** Done
+
+---
+
+## 1) Contexte
+This class focused on how to find subdomains of a target in order to expand the attack surface. Subdomains often host less-protected services than the main domain, making them valuable entry points.
+
+## 2) Hypothèse de départ
+I expected to learn efficient ways to enumerate and exploit subdomains — treating them as a powerful route when the root domain looks secure.
+
+## 3) Outils utilisés
+- **OSINT** → crt.sh, search engines, Sublist3r  
+- **DNS bruteforce** → dnsrecon, massdns, dnsx, SecLists wordlists  
+- **Virtual Host fuzzing** → ffuf with Host header manipulation  
+- **Validation** → curl, dig, hashing responses to confirm distinct apps  
+
+## 4) Approche (haut niveau)
+1. Perform OSINT via certificate logs, search engines, and tools like Sublist3r.  
+2. Use DNS bruteforce with curated wordlists, detect wildcard DNS, and validate hits.  
+3. Fuzz Host headers against the server IP to uncover hidden virtual hosts.  
+4. Triage results to filter live, relevant, and exploitable subdomains.  
+
+## 5) Résultats / preuve (sanitisé)
+- Enumerated multiple subdomains from crt.sh and wordlists.  
+- Validated real vs. wildcard DNS responses with `dig`.  
+- Identified distinctions in sites by hashing body content (`curl -s … | md5sum`).  
+- Confirmed that many subdomains exist but only a subset expose meaningful services.  
+
+## 6) Remédiation recommandée
+- Monitor and audit all subdomains regularly (DNS inventory, asset discovery).  
+- Retire unused/deprecated subdomains.  
+- Harden staging/dev subdomains with auth and limited exposure.  
+- Implement wildcard DNS protections carefully; avoid exposing every possible hostname.  
+
+## 7) Leçons apprises
+- Subdomain enumeration is about breadth, but triage makes it valuable.  
+- OSINT + bruteforce + virtual-host fuzzing together maximize coverage.  
+- Wildcard DNS creates false positives; always validate.  
+- Real value comes from checking if a subdomain is alive, fingerprinting it, and assessing its sensitivity.  
+
+## 8) Liens / ressources
+- TryHackMe — Intro to Web Hacking (subdomain enumeration section)  
+- Tools: Sublist3r, Amass, dnsx, massdns, ffuf  
+- SecLists wordlists for DNS enumeration  
+- crt.sh (certificate transparency search)  
+- (Lien vers la note Notion détaillée)
+
+---
+
+> **Snippet**
+> 
+> ```
+> OSINT: crt.sh, Wayback, GitHub, Google dorks
+> DNS brute: massdns/dnsx + SecLists (check wildcard with dig random12345.domain +short)
+> Virtual-host fuzzing: ffuf -H "Host: FUZZ.domain" -u http://IP/ -w namelist.txt -mc 200,301 -fs <size>
+> Verify: curl -I -H "Host: candidate.domain" http://IP/ ; md5 body to compare sites
+> Quick triage: alive? services open? TLS/cert? app fingerprint? sensitive content? JS/assets?
+> Tools: sublist3r, subfinder, amass, massdns, dnsx, ffuf, crt.sh, SecLists
+> ```

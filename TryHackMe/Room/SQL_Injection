@@ -1,0 +1,96 @@
+---
+title: "SQL Injection — TryHackMe"
+date: "2025-09-27"
+platform: "TryHackMe"
+type: "Classroom"
+scope: "lab"
+tags: ["tryhackme","classroom","sqli","injection","information_schema","sqlmap","blind-sqli"]
+---
+
+# SQL Injection — TryHackMe
+**Date:** 2025-09-27  
+**Type:** Classroom  
+**Statut:** Done
+
+---
+
+## 1) Contexte
+Introduction to SQL Injection (SQLi): how relational databases work, how SQLi appears in apps, and practical techniques to discover and exploit in-band (error/UNION), blind (boolean/time) and out-of-band (OOB) SQLi.
+
+## 2) Hypothèse de départ
+Learn how to conduct practical SQLi audits and how to speed up extraction (schema enumeration first, then data), while understanding different DB engines and modes of injection.
+
+## 3) Outils utilisés
+- Browser / Burp Suite (Proxy, Repeater)  
+- `curl` / simple HTTP requests for quick tests  
+- `sqlmap` (automated dumping once manually confirmed)  
+- Knowledge of DB metadata (`information_schema`, `pg_catalog`, SQLite PRAGMA)
+
+## 4) Approche (haut niveau)
+1. Identify injection point (URL params, POST fields, headers, cookies).  
+2. Do quick sanity checks (`'`, `"`). Classify type: error/UNION/blind/OOB.  
+3. For in-band: find column count, match types, use `UNION SELECT` and `information_schema` to enumerate schema and dump data (use `GROUP_CONCAT()` to merge results).  
+4. For blind: use boolean or time-based techniques; speed up with chunking and binary search on ASCII.  
+5. Consider OOB only when other channels are blocked and the environment supports outbound callbacks.  
+6. Automate after manual confirmation (sqlmap) and always verify payloads & outputs manually.
+
+## 5) Résultats / preuve (sanitisé)
+- Consolidated core SQL commands (`SELECT`, `INSERT`, `UPDATE`, `DELETE`, `UNION`, transactions).  
+- Practised detection: injection via `'` → error-based clues; `UNION` to retrieve data when reflected; boolean/time tests for blind environments.  
+- Applied metadata enumeration (`information_schema`) to list tables/columns when in-band possible.  
+- Verified that blind extraction is feasible but slow — speedups: chunking, binary ASCII search, parallelization and tools like sqlmap.
+
+## 6) Remédiation recommandée
+- **Prepared statements / parameterized queries** everywhere (primary defense).  
+- Input validation and whitelisting (types, formats, length).  
+- Least-privilege DB accounts; disable multi-statement execution where possible.  
+- Hide DB errors from users; log server-side.  
+- Use DB constraints and limit privileges to minimize damage on compromise.  
+- Defense-in-depth: WAF, monitoring, SAST/DAST, code review, CI tests.
+
+## 7) Leçons apprises
+- Always enumerate schema/tables/columns first (faster than blind char-by-char extraction).  
+- Prefer in-band `UNION`/error methods when available — they allow bulk extraction (`GROUP_CONCAT`) vs slow blind loops.  
+- Blind extraction can be made practical with chunking, binary search on ASCII, limited charset assumptions and safe parallelization.  
+- Automate with sqlmap after manual confirmation — but verify everything manually before reporting.  
+- Prevention = parameterized queries + whitelist validation + least-privilege + no verbose errors.
+
+## 8) Liens / ressources
+- TryHackMe — SQL Injection module  
+- SQL cheat sheets (SELECT, JOINs, GROUP_CONCAT, information_schema)  
+- sqlmap documentation & common flags (`--technique`, `--dump`, `--threads`)  
+- OWASP SQL Injection guidance  
+- (Lien vers la note Notion détaillée)
+
+---
+
+> **Snippet**
+> 
+> ```
+> SQLi quick workflow
+> 
+> 1) Identify input: URL params, POST fields, cookies, headers.
+> 2) Classify:
+>    - Error-based?  -> inject ' and watch DB errors
+>    - UNION-based?  -> try ' UNION SELECT NULL... (match column count/types)
+>    - Blind?        -> boolean/time probes (binary search, chunking)
+>    - OOB?          -> only if DB/app can do outbound requests (DNS/HTTP)
+> 
+> 3) UNION path:
+>    - Find column count: ORDER BY n or trial UNION NULLs
+>    - Enumerate schema: use information_schema tables/columns with GROUP_CONCAT
+>    - Dump data: UNION SELECT ... GROUP_CONCAT(username,':',password SEPARATOR '<br>')
+> 
+> 4) Blind (boolean/time) speedups:
+>    - Chunk substrings via SUBSTRING(..., start, len)
+>    - Binary-search ASCII codes with ASCII(SUBSTRING(...))
+>    - Restrict charset if possible (hex, base64)
+>    - Parallelize carefully
+> 
+> 5) Tooling:
+>    - sqlmap for automation after manual verification
+>    - Burp for manual proof-of-concept and payload tuning
+> 
+> 6) Mitigations:
+>    - Prepared statements, input whitelist, least-privilege DB user, hide DB errors
+> ```

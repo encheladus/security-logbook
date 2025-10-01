@@ -1,0 +1,86 @@
+---
+title: "Race Condition — TryHackMe"
+date: "2025-09-25"
+platform: "TryHackMe"
+type: "Classroom"
+scope: "lab"
+tags: ["tryhackme","classroom","race-condition","toctou","burp","repeater","concurrency","idempotency"]
+---
+
+# Junior Pentester (Race Condition) — TryHackMe
+**Date:** 2025-09-25  
+**Type:** Classroom  
+**Statut:** Done
+
+---
+
+## 1) Contexte
+Race condition vulnerabilities in web apps: what they are, why they happen (concurrency on shared state), and how to exploit them with Burp Repeater/Intruder. Concepts covered: threads vs multithreading, state diagrams, and TOCTOU.
+
+## 2) Hypothèse de départ
+Timing bugs drive weird behaviours in production; I wanted to learn *how to reliably hit the tiny timing window* to turn them into exploitable issues.
+
+## 3) Outils utilisés
+- Burp Suite (Repeater tab groups, **Send group in parallel**, separate connections)  
+- Optional: Turbo Intruder / custom scripts for fine-grained timings  
+- Browser DevTools (observe flows)  
+
+## 4) Approche (haut niveau)
+1. Map the workflow and locate the **check → commit** window.  
+2. Identify the trigger request (single POST doing both, or separate **confirm** endpoint).  
+3. Use Burp Repeater tab groups; duplicate 5–20+ requests and **send in parallel** to minimize arrival skew.  
+4. Tune volume/timing; observe final state changes (not just HTTP codes).  
+
+## 5) Résultats / preuve (sanitisé)
+- Reproduced a race by firing parallel duplicates during the check→commit gap; observed multiple successful “commits” where only one should occur.  
+- Scaled from ~10 to a few thousand requests (lab) to study behaviour; confirmed that synchronized parallel sends outperform naïve flooding.  
+
+## 6) Remédiation recommandée
+- **Atomicity & locks:** transactions, row locks (`SELECT … FOR UPDATE`), mutexes around critical sections.  
+- **Idempotency keys:** enforce one-time operations (payments, coupons).  
+- **DB constraints:** unique indexes/checks to uphold invariants even under race.  
+- **Queue/serialize** sensitive flows; **rate-limit** high-risk endpoints.  
+- **Monitoring & tests:** concurrency tests, anomaly alerts on duplicate side effects.  
+
+## 7) Leçons apprises
+- The exploitable window lives **between check and commit** (TOCTOU).  
+- **Parallel delivery** with synchronized send (HTTP/1 last-byte sync / HTTP/2 multiplexing) wins more races.  
+- Start small, then ramp; too many requests can trigger WAF/limits and hide the bug.  
+- Prove impact with **state changes** (double redemption, inconsistent balances), not only identical responses.  
+
+## 8) Liens / ressources
+- TryHackMe — Junior Pentester (Race Condition module)  
+- PortSwigger: Repeater group send modes / Turbo Intruder primer  
+- OWASP Cheat Sheets: Transaction/locking, Authentication & Sessions (for idempotency)  
+- (Lien vers la note Notion détaillée)
+
+---
+
+### Issue → Solution (timing: quand envoyer les duplicatas ?)
+- **Flow “check → commit” (2 étapes)** : envoyer les duplicatas **après le check** et **avant** la fin du commit.  
+- **POST unique (check+commit côté serveur)** : envoyer les duplicatas **pendant** que le POST initial est en traitement (intercepter/retarder un premier envoi, puis relâcher un burst parallèle).  
+- **UI avec GET de confirmation** : vos duplicatas doivent partir **avant** que le GET affiche le succès (donc avant la persistance).
+
+---
+
+> **Snippet**
+> 
+> ```
+> Race condition (TOCTOU) checklist
+> 1) Cartographier le flux: repérer check → commit (+ GET de succès éventuel).
+> 2) Choisir le trigger: POST unique ou endpoint "confirm".
+> 3) Burp Repeater:
+>    - Group tabs, dupliquer 10–20 req.
+>    - Send group in parallel (essayer "separate connections").
+> 4) Atterrir dans la fenêtre:
+>    - POST unique: garder 1 req en vol (intercept), relâcher un burst parallèle.
+>    - check+confirm: après "check=OK", spammer "confirm" en parallèle.
+> 5) Ajuster:
+>    - Ramping, tiny delays, surveiller WAF/limits.
+> 6) Preuve:
+>    - Effets d’état (double remise, soldes incohérents), pas juste des 200.
+> 
+> Mitigations:
+> - Transactions/locks, idempotency keys, contraintes DB,
+>   file/queue pour sérialiser, rate-limit + logs/alertes.
+> ```

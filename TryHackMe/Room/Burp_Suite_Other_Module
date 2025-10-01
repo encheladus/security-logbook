@@ -1,0 +1,73 @@
+---
+title: "Burp Other Module — TryHackMe"
+date: "2025-09-28"
+platform: "TryHackMe"
+type: "Classroom"
+scope: "lab"
+tags: ["tryhackme","classroom","burp","decoder","comparer","sequencer","organizer","payloads","entropy","diff"]
+---
+
+# Burp — Decoder / Comparer / Sequencer / Organizer — TryHackMe
+**Date:** 2025-09-28  
+**Type:** Classroom  
+**Status:** Done
+
+---
+
+## 1) Context
+Overview of Burp’s “secondary” modules that speed up an investigation: **Decoder** (payload preparation/transformations), **Comparer** (quick diff), **Sequencer** (token entropy analysis), **Organizer** (evidence/requests box). Goal: stay **inside Burp** to iterate faster and avoid mistakes.
+
+## 2) Starting hypothesis
+Understand how these modules reduce back-and-forth with external scripts, and when to use them: encode/decode/hash, compare responses/tokens, measure randomness quality, and organize important requests.
+
+## 3) Tools used
+- Burp Suite: **Decoder, Comparer, Sequencer, Organizer**  
+- Burp **Proxy/Repeater** to feed/consume results  
+- Wordlists & test values (depending on scenarios)
+
+## 4) Approach (high-level)
+1. **Decoder** to transform/chain (URL/Base64/HTML/Hex/Gzip, hashing) and send results to Repeater/Intruder.  
+2. **Comparer** to diff two responses/tokens (word/byte modes) and spot subtle variations.  
+3. **Sequencer** to capture/load token samples and measure entropy (summary, effective bits, char/bit analyses).  
+4. **Organizer** to store/annotate key requests, find them quickly and export cleanly.
+
+## 5) Results / evidence (sanitised)
+- **Decoder**: Smart Decode quickly identifies Base64/URL/Hex; transformation chains tested (e.g., Base64→edit→Gzip→URL-encode), SHA-256 hashing with hex/base64 output.  
+- **Comparer**: revealed tiny differences in near-identical 200 responses (message/length changes), and checked CSRF uniqueness.  
+- **Sequencer**: controlled token capture → report with effective entropy and charts; small lab samples (→ indicators, not absolute proof).  
+- **Organizer**: annotated requests (“replay with macro”, “check cookie”), easing reporting. No real sensitive data stored.
+
+## 6) Recommended remediation
+- **Defensive**: use **CSPRNG** token generators, adequate length, server-side mixing, bind tokens to session/context; avoid MD5/SHA-1 for security.  
+- **Operational**: mask errors, limit token leakage (timestamps/counters visible), monitor repetitive patterns; export & evidence procedures that minimise sensitive data storage.
+
+## 7) Lessons learned
+- **Decoder** = payload workshop (not just a viewer); transformation chains remove the need for ad-hoc scripts.  
+- **Comparer** reveals what the eye misses (minute diffs useful in auth/CSRF/fuzzing).  
+- **Sequencer** gives **cryptographic clues** about entropy; necessary but not sufficient to claim exploitability.  
+- **Organizer** keeps the workspace tidy: centralized, annotatable, and searchable evidence.
+
+## 8) Links / resources
+- TryHackMe — Junior Pentester (Burp modules)  
+- PortSwigger Docs — Decoder / Comparer / Sequencer / Organizer  
+- OWASP — Cryptographic Storage, Session Management  
+- (Link to detailed Notion note)
+
+---
+
+> **Snippet**
+> 
+> ```
+> Burp — Other Modules (cheatsheet)
+> 
+> Decoder  : encode/decode/hash, Smart Decode, transformation chains → Send to Repeater/Intruder.
+> Comparer : word/byte diff on responses/tokens; spots subtle differences.
+> Sequencer: capture/load tokens, measure entropy (effective bits, frequency, autocorrelation).
+> Organizer: “evidence box” — stash, annotate, search, export.
+> 
+> Tips:
+> - Chain: Base64→edit→Gzip→Hex→URL-encode (then Send to).
+> - Hashing: prefer SHA-256/512; convert digest to hex/base64 before sending.
+> - Sequencer: aim for larger samples for reliability; document sample size & confidence level.
+> - Comparer: use byte diff for encoded values, word diff for HTML/JSON.
+> ```

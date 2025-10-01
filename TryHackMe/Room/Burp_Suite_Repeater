@@ -1,0 +1,87 @@
+---
+title: "Burp Repeater — TryHackMe"
+date: "2025-09-27"
+platform: "TryHackMe"
+type: "Classroom"
+scope: "lab"
+tags: ["tryhackme","classroom","burp","repeater","manual-testing","sqli"]
+---
+
+# Burp Repeater — TryHackMe
+**Date:** 2025-09-27  
+**Type:** Classroom  
+**Status:** Done
+
+---
+
+## 1) Context
+Deep dive into **Burp → Repeater**: how it’s organised, what each control does, and how to use it efficiently for manual testing. Includes a guided **SQLi** challenge carried out from Repeater.
+
+## 2) Starting hypothesis
+Already used Repeater for race conditions; now expecting a more theoretical overview to understand the layout, controls, and efficient workflows.
+
+## 3) Tools used
+- Burp Suite **Repeater** (Request list, Controls, Views, Inspector, Target)  
+- Burp **Proxy** (to capture and send requests to Repeater)  
+- Optional comparison with `curl` for crafting raw requests
+
+## 4) Approach (high-level)
+1. Capture requests in Proxy → **Send to Repeater** (`Ctrl+R`).  
+2. Edit and resend iteratively; use the request history arrows next to **Send**.  
+3. Switch response view (**Pretty/Raw/Hex/Render**) and toggle non-printables.  
+4. Use the **Inspector** to edit params, headers, and cookies structurally.  
+5. Apply to SQLi: error probing → `UNION` probing → targeted extraction.
+
+## 5) Results / evidence (sanitised)
+- Confirmed SQLi via `'` causing a 500 with a DB error.  
+- Used `UNION` to enumerate metadata, then extracted target data:
+  - Example mapper (columns):  
+    `/about/0 UNION ALL SELECT column_name,NULL,NULL,NULL,NULL FROM information_schema.columns WHERE table_name="people"`
+  - Target extraction example:  
+    `/about/0 UNION ALL SELECT notes,NULL,NULL,NULL,NULL FROM people WHERE id=1 HTTP/1.1`
+- Evidence: the page reflected metadata and the `notes` content (flag). No sensitive real-world data was exposed.
+
+## 6) Recommended remediation
+- For developers (tool-agnostic): use **parameterized queries**, strict input validation, hide DB errors, and give the DB user least privilege.  
+- For testers: make changes **incremental**, save raw responses as evidence, prefer **NULL placeholders** once column count is known, and understand `UNION` vs `UNION ALL`.
+
+## 7) Lessons learned
+- Repeater is a **sandbox** for controlled manual experimentation (edit → send → observe → iterate).  
+- `UNION ALL` **keeps duplicates**; `UNION` deduplicates; `*` is unrelated (it's a column wildcard in `SELECT *`).  
+- Use `NULL` placeholders to match column count/types; use numeric placeholders (`1,2,3…`) only while discovering reflection/column count.  
+- Build payloads stepwise: error → structure (`ORDER BY` / `UNION`) → targeted extraction.
+
+## 8) Links / resources
+- TryHackMe — Burp Repeater / SQLi challenge  
+- PortSwigger docs — Repeater & Inspector  
+- OWASP SQL Injection Cheat Sheet  
+- (Link to detailed Notion note)
+
+---
+
+### FAQ (Issue → Solution)
+- **“ALL” in `UNION ALL`: is that the same as `*`?**  
+  No. `UNION ALL` keeps duplicate rows. `UNION` removes duplicates. `*` is a **column wildcard** used in `SELECT *` and has nothing to do with `UNION ALL`.
+- **Why use `NULL` in the other columns?**  
+  Each `SELECT` in a `UNION` must return **the same number of columns** with **compatible types**. We use `NULL` (or a compatible literal) to “fill” columns that we don't need, once we know how many columns are required and which one is reflected.
+
+---
+
+> **Snippet**
+> 
+> Burp Repeater — quick checklist & tips
+> 
+> Basics:
+> - Proxy → Right-click → Send to Repeater (Ctrl+R)
+> - Edit → Send → observe response (Pretty/Raw/Hex/Render; show non-printables)
+> - Use Inspector to tweak params/headers/cookies structurally
+> 
+> SQLi flow (example):
+> - Error probe: add ' or " → watch for DB errors
+> - Column count: ORDER BY n or UNION SELECT NULL,NULL,...
+> - Reflection: identify which column is rendered
+> - Extraction: UNION [ALL] SELECT <payload>,NULL,... FROM <table>
+> 
+> Remember:
+> - UNION ALL ≠ SELECT *   (ALL keeps duplicates; * is column wildcard)
+> - Use NULL placeholders to satisfy column count/types

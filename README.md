@@ -14,7 +14,7 @@ within the next 2–3 years.
 
 ## 🌐 More detailed version
 I keep a **full detailed logbook** (screenshots, step-by-step, personal notes) here:  
-👉 [My Notion Pentest Logbook](lien)
+👉 [My Notion Pentest Logbook](https://nicolas-learning-path.notion.site/Security-logbook-27f49db3cb55802d9241df62c829603f?source=copy_link)
 
 ---
 

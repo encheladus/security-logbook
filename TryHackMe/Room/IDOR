@@ -1,0 +1,88 @@
+---
+title: "IDOR — TryHackMe"
+date: "2025-09-21"
+platform: "TryHackMe"
+type: "Classroom"
+scope: "lab"
+tags: ["tryhackme","classroom","idor","access-control","authorization","web"]
+---
+
+# Junior Pentester (IDOR) — TryHackMe
+**Date:** 2025-09-21  
+**Type:** Classroom  
+**Statut:** Done
+
+---
+
+## 1) Contexte
+This classroom focused on finding **IDOR vulnerabilities** (Insecure Direct Object References). IDORs occur when a server uses user-supplied identifiers to fetch objects but fails to enforce ownership/authorization checks, allowing attackers to access data they shouldn’t.
+
+## 2) Hypothèse de départ
+I expected to learn what IDORs are, how to detect them in practice, and why they can be critical for data protection.
+
+## 3) Outils utilisés
+- Browser DevTools (inspect requests/responses, JS assets, APIs)  
+- `curl` for parameter manipulation & response comparison  
+- `base64` / CyberChef for decoding identifiers  
+- Hash cracking resources (CrackStation, rainbow tables) — only in authorized labs  
+- Manual account creation & differential testing  
+
+## 4) Approche (haut niveau)
+1. Identify where identifiers are used: query parameters, paths, JSON, hidden fields, cookies.  
+2. Classify identifier type: plain, encoded (Base64), hashed, or opaque.  
+3. Test simple swaps: increment/decrement IDs to check access.  
+4. Decode/inspect encoded IDs; attempt hash reversal if weak.  
+5. For opaque IDs: create multiple accounts, compare requests, and swap identifiers.  
+6. Assess impact: what object is exposed, how easy is enumeration, and whether automation is possible.  
+
+## 5) Résultats / preuve (sanitisé)
+- Confirmed that **encoded IDs (Base64)** are easily reversible and should not be treated as secure.  
+- Noted that weak **hashed IDs** may be crackable, but strong salted hashes resist reversal.  
+- Demonstrated comparative testing with two accounts → server returned cross-account data without authorization checks = IDOR.  
+- Highlighted that IDOR is not “small”: depending on the object, it can lead to massive leaks or privilege escalation.  
+
+## 6) Remédiation recommandée
+- Enforce **server-side authorization checks** for every object access.  
+- Use opaque, unguessable identifiers (UUIDs) instead of sequential IDs.  
+- Implement rate limiting and monitoring to detect mass IDOR exploitation.  
+- Regularly audit APIs and hidden endpoints for access-control enforcement.  
+- Apply least-privilege and defense-in-depth: sensitive objects should have layered protections.  
+
+## 7) Leçons apprises
+- IDOR = access-control failure; its severity depends on **object value + ease of enumeration**.  
+- Encoded IDs ≠ security. Hashed IDs may still be predictable if weak.  
+- Opaque IDs require comparison testing; multiple accounts help uncover leaks.  
+- Real-world risk: IDOR on invoices, payments, or admin endpoints can be catastrophic.  
+- Chaining IDOR with leaks/misconfigs can escalate impact massively.  
+
+## 8) Liens / ressources
+- TryHackMe — Junior Pentester (IDOR module)  
+- OWASP Top 10 — Broken Access Control (A01:2021)  
+- PortSwigger Web Security Academy — IDOR labs  
+- CyberChef (decode/encode utilities)  
+- CrackStation (hash cracking reference, for weak hashes)  
+- (Lien vers la note Notion détaillée)
+
+---
+
+> **Snippet**
+> 
+> ```
+> IDOR quick checklist:
+> 1) Locate IDs → URL, JSON, POST fields, API, hidden inputs, cookies.
+> 2) Classify → plain / encoded (Base64) / hashed / opaque.
+> 3) Test swaps → +1/-1, other known IDs.
+> 4) Decode Base64, test hash reversals (authorized labs only).
+> 5) Opaque IDs → create 2+ accounts, swap IDs between them.
+> 6) Validate → server must enforce ownership.
+> 7) Score impact = object sensitivity × ease of enumeration × automation.
+> 
+> # decode base64
+> echo 'aWQ6MTMwNQ==' | base64 -d
+> 
+> # compare responses
+> curl -s 'http://target/profile?user_id=1305' | md5sum
+> curl -s 'http://target/profile?user_id=1306' | md5sum
+> 
+> Principle: validate hits manually, think automation & chaining.
+> ```

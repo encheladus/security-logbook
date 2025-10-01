@@ -1,0 +1,70 @@
+---
+title: "Principles of Security — TryHackMe"
+date: "2025-09-18"
+platform: "TryHackMe"
+type: "Classroom"
+scope: "lab"
+tags: ["tryhackme","classroom","security","cia","stride","incident-response"]
+---
+
+# Principles of Security — TryHackMe
+**Date:** 2025-09-18  
+**Type:** Classroom  
+**Statut:** Done
+
+---
+
+## 1) Contexte
+TryHackMe class regarding the importance of data security in an organization and how to secure it.
+
+## 2) Hypothèse de départ
+I expected to better understand security principles around organisational data and how to scale protections to secure it effectively.
+
+## 3) Outils utilisés
+A learning/classroom session — no direct tooling used. Concepts and frameworks covered.
+
+## 4) Approche (haut niveau)
+Study the core concepts (CIA triad), privilege models (PIM/PAM), classical security models (Bell-LaPadula, Biba), threat modelling (STRIDE, PASTA) and incident response lifecycle. Extract practical lessons applicable to pentest audits and organisational security posture.
+
+## 5) Résultats / preuve (sanitisé)
+- Core concepts consolidated: CIA triad (Confidentiality, Integrity, Availability).
+- Privilege management clarified: PIM (map roles → access), PAM (manage those privileged accesses).
+- Models compared:
+  - Bell-LaPadula: **confidentiality-focused** — *no write down, no read up*.
+  - Biba: **integrity-focused** — *no write up, no read down*.
+- Threat modelling (STRIDE) and IR lifecycle summarized.
+- Evidence: summarized notes and conceptual mappings (no sensitive data).
+
+## 6) Remédiation recommandée
+- Apply principle of least privilege (PIM → PAM workflows).
+- Implement role-based access controls with review/rotation for privileged accounts.
+- Use threat modelling (STRIDE) during design phases to bake in mitigations.
+- Maintain an IR plan aligned with NIST/ISO best practices: preparation → identification → containment → eradication → recovery → lessons learned.
+- Ensure availability via redundancy, DR/BCP and DDoS mitigations as part of holistic CIA balancing.
+
+## 7) Leçons apprises
+- Understand data value first — design controls according to confidentiality, integrity and availability needs.
+- Historical context matters: early models target different priorities (military vs business).
+- Security is process-driven (models + testing + IR), not only tooling.
+- Threat modelling and formal IR procedures are essential operational complements to access models.
+- For pentesting: framing tests around CIA + STRIDE yields a clearer impact analysis.
+
+## 8) Liens / ressources
+- TryHackMe — Principles of Security (room)
+- STRIDE / PASTA references
+- Bell-LaPadula and Biba model summaries
+- ISO 27001 / NIST overviews (for IR and availability best practices)
+- (Lien vers la note Notion détaillée)
+
+---
+
+> **Snippet**
+> 
+> ```
+> CIA = Confidentiality / Integrity / Availability
+> Principle of Least Privilege — give minimum rights
+> Bell-LaPadula: no read up, no write down (confidentiality)
+> Biba: no read down, no write up (integrity)
+> STRIDE = Spoofing, Tampering, Repudiation, Info disclosure, DoS, Elevation
+> IR phases = Preparation → Identification → Containment → Eradication → Recovery → Lessons learned
+> ```

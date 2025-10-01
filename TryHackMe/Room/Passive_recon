@@ -1,0 +1,84 @@
+# Passive Reconnaissance — TryHackMe  
+**Date:** 2025-09-30  
+**Type:** Classroom  
+**Scope:** Lab / Authorized only
+
+---
+
+## 1) Contexte
+Cartographier une cible **sans l’interroger directement** (low-noise). Utiliser WHOIS, DNS publics, services d’agrégation (DNSDumpster, Shodan) pour obtenir des infos récentes et actionnables avant tout actif.
+
+## 2) Hypothèse de départ
+Apprendre à bâtir une empreinte passive fiable d’un domaine (propriétaire, délégation DNS, sous-domaines observés, services exposés) et savoir pourquoi les CLIs restent indispensables face aux agrégateurs.
+
+## 3) Outils utilisés
+- `whois` (TCP/43)
+- `dig`, `nslookup` (DNS/53)
+- **DNSDumpster** (agrégation DNS passive)
+- **Shodan** (bannières & services indexés)
+> Sans options agressives ni scans actifs.
+
+## 4) Approche (haut niveau)
+1. **Agrégateurs → pistes** : DNSDumpster/Shodan pour lister hôtes/services connus publiquement.  
+2. **CLIs → vérité autoritative** : valider avec `whois` (registrar/NS/expiry) puis `dig` (A/AAAA, MX, TXT, NS, SOA, TTL).  
+3. **Autoritatives (avec prudence)** : `dig @nsX` pour confirmer délégation et réponses sources; **AXFR** testé uniquement en lab/ROE explicite.  
+4. **Corrélation** : croiser WHOIS ↔ NS ↔ Shodan (bannières/versions) ↔ CT logs si besoin.  
+5. **Traçabilité** : horodater et sauvegarder les sorties brutes (preuves reproductibles).
+
+## 5) Résultats / preuve (sanitisé)
+- WHOIS : récupération des **NS**, registrar et dates (création/expiry).  
+- DNS : enregistrements **A/MX/TXT/NS/SOA** confirmés avec TTLs.  
+- DNSDumpster : liste de sous-domaines **observés** (non exhaustive).  
+- Shodan : ports/bannières **publiquement indexés** pour IPs liées.  
+*Aucune donnée sensible consignée; uniquement des artefacts publics et exemples génériques.*
+
+## 6) Remédiation recommandée
+- **WHOIS privacy** & contacts à jour; surveiller les expirations.  
+- **DNS hardening** : désactiver **AXFR** non autorisé; DNSSEC si applicable; TTLs cohérents.  
+- **Email** : SPF/DKIM/DMARC stricts, pas de secrets dans TXT.  
+- **Exposition** : réduire les bannières/versions, placer admin sur VPN, filtrer par IP.  
+- **Surface** : inventaire continu (CT logs, passif DNS), retirer sous-domaines orphelins.  
+- **Monitoring** : veille Shodan/cert-transparency + alertes sur nouveaux services.
+
+## 7) Leçons apprises
+- Les agrégateurs **découvrent**; les CLIs **valident** (fraîcheur, autorité, détails comme TTL/SOA).  
+- Interroger l’**authoritative** éclaire délégation/split-horizon; à manier selon ROE.  
+- **Preuve** = sorties brutes horodatées (whois/dig) + captures synthétiques.  
+- La question “pourquoi pas seulement DNSDumpster/Shodan ?” → fraîcheur, contrôle, scriptabilité, et tests avancés (AXFR, flags).
+
+## 8) Liens / ressources
+- man pages: `whois`, `dig`, `nslookup`  
+- DNSDumpster (cartographie passive)  
+- Shodan (bannières/services indexés)  
+- (Ton Notion public si tu veux lier le détail)
+
+---
+
+> **Snippet**
+> 
+> ```bash
+> # WHOIS — registrar/NS/expiry
+> whois example.com | tee whois_example.com.txt
+> 
+> # DNS — réponses actuelles (passif via résolveur public)
+> dig example.com A     +short
+> dig example.com MX    +short
+> dig example.com TXT   +short
+> dig example.com NS    +short
+> 
+> # Autoritative (selon ROE) : vérité source + SOA/TTL
+> dig @ns1.example.com example.com SOA
+> dig @ns1.example.com example.com A +short
+> 
+> # Zone transfer (LAB UNIQUEMENT)
+> dig @ns1.example.com example.com AXFR
+> 
+> # Vérifier hôtes issus d’un export DNSDumpster
+> while read h; do dig "$h" A +short; done < dnsdumpster_hosts.txt
+> 
+> # Shodan (pivots passifs, à corroborer)
+> #  - web: hostname:example.com  port:443
+> #  - netblocks: net:198.51.100.0/24  product:"OpenSSH"
+> ```
+> 
+> **Disclaimer:** work shown here is for learning in authorised labs only. Do not apply techniques to systems without explicit permission.
