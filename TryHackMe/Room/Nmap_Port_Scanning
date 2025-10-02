@@ -1,0 +1,87 @@
+# Nmap Port Scanning — TryHackMe (Junior Pentester)
+**Date:** 2025-10-03  
+**Type:** Classroom  
+**Scope:** Lab / Authorized only
+
+---
+
+## 1) Context
+In-depth look at Nmap’s main port-scan types at TCP/UDP layers, how responses map to port states, and when to use each safely and effectively:
+1) **TCP connect()** (full 3-way handshake)  
+2) **TCP SYN** (half-open, raw SYN)  
+3) **UDP** (ICMP/UDP behavior inference)
+
+## 2) Initial hypothesis
+I used basic Nmap commands without fully understanding them. I expect to learn how privilege affects scan types (connect vs SYN), why some scans are faster/stealthier, and when to choose TCP connect, TCP SYN, or UDP.
+
+## 3) Tools used
+- **Nmap**: `-sT`, `-sS`, `-sU`, `-p`, `-F`, `--top-ports`, `-r`, `-T<0-5>`, `--max-rate`, `--min-rate`, `--min-parallelism`, `-Pn`
+- Packet captures (optional) to observe behavior
+
+## 4) Approach (high level)
+- Clarify **port states** and how firewalls/IDS create ambiguity.
+- Study **TCP flags** and what replies mean (SYN/ACK, RST, no reply, ICMP).
+- Compare **connect() vs SYN** scans (privileges, noise, speed).
+- Understand **UDP scanning** limits and follow-ups.
+- Tune **scope & performance** (ports, timing, rates, parallelism).
+
+## 5) Results / Evidence (sanitized)
+- **Port states** beyond open/closed: filtered, unfiltered, open|filtered, closed|filtered.  
+- **TCP connect (`-sT`)**: reliable, logs full connections; good unprivileged fallback.  
+- **TCP SYN (`-sS`)**: faster, fewer completed handshakes; needs sudo/root.  
+- **UDP (`-sU`)**: often **open|filtered**; ICMP rate-limits cause ambiguity—requires targeted probes/scripts.  
+- Timing templates affect accuracy: **very aggressive (`-T5`) missed replies**; moderate **`-T3/-T4`** balanced speed and reliability.  
+*(No target-specific data included.)*
+
+## 6) Recommended remediation
+- **For testers:**  
+  - Use `-Pn` when ping is blocked to avoid skipping live hosts.  
+  - Prefer `sudo nmap -sS` for TCP mapping; reserve `-sT` for unprivileged contexts.  
+  - Constrain UDP to likely ports; validate with service probes/NSE.  
+  - Control footprint with `-T3/-T4`, `--max-rate`, and reasonable parallelism.  
+- **For defenders:**  
+  - Filter/ratelimit ICMP, normalize TCP behavior, monitor SYN bursts/connect spikes, and log anomalous UDP/ICMP.
+
+## 7) Lessons learned
+- **Privileges change technique**: `-sS` (root) vs `-sT` (user).  
+- **UDP ≠ TCP**: silence is data; expect follow-ups.  
+- **Host discovery matters**: without `-Pn`, port scans may never start.  
+- Small tuning (ports, timing, rate) massively impacts **speed, accuracy, and noise**.  
+- **Logs/OPSEC**: connect scans are loud; SYN is lighter but still detectable.
+
+## 8) Links / Resources
+- TryHackMe — *Junior Pentester* (room)  
+- Nmap Reference Guide (scan types & timing)  
+- NSE docs for service-specific probes  
+- Notion: detailed write-up
+
+## 9) Snippet
+**Snippet**
+```
+# Skip host discovery if ping is blocked; fast TCP SYN on common ports
+sudo nmap -Pn -sS -T4 --top-ports 100 TARGET
+
+# Full TCP sweep (all ports) with sane speed caps
+sudo nmap -sS -p- -T3 --max-rate 100 TARGET
+
+# Unprivileged fallback (logged as full connections)
+nmap -Pn -sT -p 22,80,443 TARGET
+
+# Focused UDP (expect open|filtered; verify with NSE/service probes)
+sudo nmap -Pn -sU -p 53,123,161,500 TARGET
+
+# Mixed families (explicit TCP+UDP sets)
+sudo nmap -Pn -sS -sU -pT:22,80,443 -pU:53,123 TARGET
+
+# Quick recon first, then expand if needed
+sudo nmap -sS -F --top-ports 100 -T4 TARGET
+
+# Add version & default scripts when authorized
+sudo nmap -sS -p 22,80,443 -sV -sC TARGET
+
+# Tame speed for fragile links
+sudo nmap -sS -p 22,80,443 -T3 --max-rate 25 --max-parallelism 100 TARGET
+
+# Save outputs (normal, XML, grepable)
+sudo nmap -sS -p 22,80,443 -oA scan_basics TARGET
+```
