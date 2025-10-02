@@ -1,0 +1,79 @@
+# Active Reconnaissance — TryHackMe (Junior Pentester)  
+**Date:** 2025-10-01  
+**Type:** Classroom  
+**Scope:** Lab / Authorized only
+
+---
+
+## 1) Context  
+Active recon = *touching* the target to confirm reachability, map network paths, and grab simple banners. Use a browser, `ping`, `traceroute`, `telnet`, and `nc` to observe real behavior. **Authorization is mandatory**—even small probes can trigger alerts.
+
+## 2) Initial hypothesis  
+Practice safe active recon basics: confirm host reachability, trace paths, grab banners, and know when to switch to TLS-aware tools like `openssl s_client` or `curl` for HTTPS.
+
+## 3) Tools used  
+- Web browser + DevTools (Network, Console, Application, Security)  
+- `ping`, `traceroute`/`tracert`  
+- `telnet` (manual TCP), `nc` (netcat)  
+- `openssl s_client`, `curl` (for TLS/HTTP)
+
+## 4) Approach (high level)  
+- **Browser-first:** capture requests via proxy (Burp), inspect headers/cookies/XHRs.  
+- **Reachability:** `ping` for basic liveness/RTT baseline.  
+- **Path mapping:** `traceroute` (or TCP mode to 443) to see hops/CDNs/WAFs.  
+- **Service checks:** `telnet`/`nc` to expected ports for quick banner/protocol sanity; use `openssl s_client` for TLS.  
+- **Record & throttle:** timestamp outputs; keep probes minimal.
+
+## 5) Results / Evidence (sanitized)  
+- Confirmed how non-standard ports require explicit scheme/port in browser (e.g., `https://127.0.0.1:8834/`).  
+- Observed headers, cookies, and hidden XHR endpoints via DevTools.  
+- Demonstrated that lack of ICMP reply ≠ service down; TCP checks still succeeded.  
+*(Final state: “active recon workflow validated in lab”; no sensitive endpoints or credentials disclosed.)*
+
+## 6) Recommended remediation  
+- Monitor/alert on ICMP spikes and unusual traceroute/TCP probes.  
+- Place origins behind CDNs/WAFs; minimize banner leakage.  
+- Enforce TLS everywhere; disable plaintext mgmt services.  
+- Rate-limit and log access to admin/non-standard ports.  
+- Standardize security headers; restrict verbose error messages.
+
+## 7) Lessons learned  
+- Start small: **ping → traceroute → nc/telnet → browser/DevTools**.  
+- **ICMP filtering** is common; verify with TCP or TLS tools.  
+- `telnet` is fine for clear-text, ad-hoc checks; prefer **`nc`** for scripts and **`openssl s_client`** for TLS.  
+- Save evidence with timestamps; routes and banners can change.
+
+## 8) Links / Resources  
+- TryHackMe — *Junior Pentester* (room)  
+- `man` pages: ping, traceroute/tracert, nc, telnet, openssl, curl  
+- Notion: detailed public write-up
+
+## 9) Snippet
+**Snippet**
+```
+# Reachability
+ping -c 4 target.example.com    # Linux/macOS
+ping -n 4 target.example.com    # Windows
+
+# Path mapping
+traceroute -n target.example.com
+traceroute -T -p 443 target.example.com    # TCP to 443 if ICMP/UDP filtered
+tracert target.example.com    # Windows
+
+# Quick TCP checks / banners
+nc -vz target.example.com 80
+echo -e "HEAD / HTTP/1.1\r\nHost: target.example.com\r\n\r\n" | nc -w 2 target.example.com 80
+
+# TLS banner / cert
+openssl s_client -connect target.example.com:443 -servername target.example.com </dev/null 2>/dev/null | openssl x509 -noout -subject -issuer -dates
+
+# Telnet (clear-text, ad-hoc only)
+telnet target.example.com 25
+telnet target.example.com 80
+
+# Mini scan loop (authorized labs)
+for p in 22 25 80 443 3306; do
+  timeout 2 bash -c "echo > /dev/tcp/target.example.com/$p" 2>/dev/null \
+    && echo "port $p open" || echo "port $p closed"
+done
+```

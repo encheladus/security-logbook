@@ -1,0 +1,90 @@
+# Content Discovery — TryHackMe (Junior Pentester)  
+**Date:** 2025-09-20  
+**Type:** Classroom  
+**Scope:** Lab / Authorized only
+
+---
+
+## 1) Context  
+Intro to content discovery on web servers to uncover hidden/private items (backups, logs, configs) beyond obvious pages. Covered three discovery methods: **manual**, **automated**, and **OSINT**.
+
+## 2) Initial hypothesis  
+Learn practical, efficient starting points and workflows for finding sensitive content quickly.
+
+## 3) Tools used  
+- curl (headers, raw responses)  
+- Browser devtools / page source inspection  
+- Wappalyzer (tech fingerprinting)  
+- Wayback Machine, Google dorks, GitHub search (OSINT)  
+- ffuf / gobuster / dirb (wordlist enumeration)  
+- SecLists (wordlists)
+
+## 4) Approach (high level)  
+- Manual triage: check **/robots.txt**, **/sitemap.xml**, response **headers**, **favicon** (hashing to infer tech), and **framework defaults**.  
+- OSINT: Google operators, Wayback snapshots, GitHub leakage, CT logs.  
+- Automated: focused wordlist scans against root and promising directories; validate hits and filter noise.  
+- Correlate all hints before drawing conclusions (framework/version/endpoints).
+
+## 5) Results / Evidence (sanitized)  
+- Learned practical workflows: favicon hashing, sitemap harvesting, header review.  
+- Observed real-world behavior where **/robots.txt** redirected to homepage; confirmed via raw responses (status/Location).  
+- Built a repeatable triage: robots → sitemap → headers → favicon → OSINT → scoped enumeration.  
+(Final state: “content discovery methodology validated in lab”; no sensitive data disclosed.)
+
+## 6) Recommended remediation  
+- Avoid exposing sensitive paths in **robots.txt**; treat it as public.  
+- Keep **sitemaps** minimal and exclude non-public/stale endpoints.  
+- Remove/lock **default admin paths**; enforce auth and proper status codes.  
+- Standardize security headers; minimize tech leakage.  
+- Limit directory indexing; control object storage (e.g., S3) permissions.  
+- Monitor for OSINT leaks (GitHub, Wayback) and rotate exposed secrets.
+
+## 7) Lessons learned  
+- Content discovery = **manual + OSINT + automation**; each sees different things.  
+- **robots.txt** and **sitemap.xml** are high-signal starting points but are **hints**, not proof.  
+- Raw HTTP inspection (`curl -I/-v`) clarifies redirects/WAF behavior.  
+- Wordlist scans need careful scoping and manual validation to reduce false positives.
+
+## 8) Links / Resources  
+- TryHackMe — *Intro to Web Hacking* (room)  
+- SecLists (wordlists)  
+- OWASP Testing Guide (content discovery)  
+- Wayback Machine, Wappalyzer, crt.sh  
+- Notion: detailed public write-up
+
+## 9) Snippet
+**Snippet**
+```
+Content discovery quick checklist:
+- Techniques:
+  * robots.txt
+  * sitemap.xml
+  * response headers
+  * favicon hashing
+  * OSINT (Google dorks, Wayback, GitHub)
+  * automated scans (ffuf / gobuster)
+
+- Quick triage order:
+  1. robots.txt
+  2. sitemap.xml
+  3. headers (curl -I)
+  4. favicon (hash / identify)
+  5. OSINT (dorks, wayback, crt.sh, GH)
+  6. focused wordlist scan (ffuf/gobuster with targeted lists)
+
+- If robots.txt redirects:
+  * use `curl -I`, `curl -v`, or `curl --max-redirs 0` to inspect headers
+  * check the `Location:` header
+  * try other clients (browser, wget)
+  * consider whether app logic or WAF is redirecting
+  * throttle scans to avoid WAF/noise
+
+- Useful tools & resources:
+  * curl, wget
+  * ffuf, gobuster
+  * SecLists (wordlists)
+  * Wappalyzer / BuiltWith
+  * Wayback Machine
+  * crt.sh (cert transparency)
+  * GitHub search / code search
+```

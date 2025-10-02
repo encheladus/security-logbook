@@ -1,0 +1,98 @@
+# Authentication Bypass — TryHackMe (Junior Pentester)  
+**Date:** 2025-09-21  
+**Type:** Classroom  
+**Scope:** Lab / Authorized only
+
+---
+
+## 1) Context  
+Hands-on intro to multiple ways attackers bypass authentication to access sensitive information: username enumeration, credential guessing, logic flaws in auth flows, and cookie/token tampering.
+
+## 2) Initial hypothesis  
+Gain practical methods, tooling, and mental models to assess and bypass authentication in a lab setting.
+
+## 3) Tools used  
+- ffuf (POST fuzzing for enum/credentials)  
+- Burp Suite (Proxy/Repeater)  
+- curl (raw requests, headers)  
+- CyberChef / base64 tools (cookie/token inspection)  
+- Browser devtools  
+- SecLists (usernames/passwords wordlists)
+
+## 4) Approach (high level)  
+- **Username enumeration:** abuse deterministic server messages to build a list of valid usernames.  
+- **Credential guessing (throttled):** two-list POST fuzz (users × common passwords) to identify weak accounts.  
+- **Logic flaws:** analyze password-reset, magic-link, invite and SSO flows for parameter tampering, misbinding, or delivery bugs.  
+- **Cookie/token tampering:** inspect for plaintext/encoded/signed values; test behavior changes and validation.  
+- **Defense-aware testing:** watch for rate-limits, lockouts, WAF; validate every “hit” manually.  
+- **Think in chains:** combine small leaks with permissive endpoints to reach authenticated states.
+
+## 5) Results / Evidence (sanitized)  
+- Confirmed that deterministic signup/login messages enable **username enumeration** (built a valid user list).  
+- Demonstrated **credential guessing** workflow in a controlled lab (no real credentials disclosed here).  
+- Explored **logic-flow weaknesses** conceptually (reset/magic links/SSO), noting where parameter trust could fail.  
+- **Cookie tampering** tests showed that plaintext/unsigned cookies are dangerous; properly signed/validated cookies resisted changes.  
+*(Final state: approaches validated in lab; no sensitive data or tokens included.)*
+
+## 6) Recommended remediation  
+- **Enumeration controls:** unify error messages, introduce per-username rate limits/backoff, detect patterns.  
+- **Credential hygiene:** strong password policy, MFA, credential stuffing protections, breach password checks.  
+- **Flow hardening:** verify email↔account binding server-side; bind tokens to user, device, and short expiry; single-use reset links.  
+- **Token integrity:** sign/verify JWTs (no `alg:none`), validate `kid`, audience/issuer/expiry; rotate keys.  
+- **Session/cookies:** `HttpOnly`, `Secure`, `SameSite`; regenerate on login; defend against fixation/replay.  
+- **API authorization:** enforce on server (not client); deny-by-default; audit state-changing endpoints.  
+- **Monitoring:** alert on abnormal auth events (enum spikes, repeated resets, odd token usage).
+
+## 7) Lessons learned  
+- Modern defenses blunt **brute force**, but **logic flaws** still yield real bypasses.  
+- Username enumeration remains impactful when messages differ or timing varies.  
+- Cookie tampering only works when servers **trust client state** or signatures/validation are weak.  
+- The most effective attacks are **chained**: small leak + permissive flow ⇒ authenticated access.
+
+## 8) Links / Resources  
+- TryHackMe — *Junior Pentester* (room)  
+- OWASP ASVS & Authentication Cheat Sheet  
+- JWT Best Practices (signing/validation)  
+- Notion: detailed public write-up
+
+## 9) Snippet
+**Snippet**
+```
+Quick triage (authn/authz):
+- Username enumeration:
+  * Look for deterministic messages; save valid users.
+  * Throttle credential guessing; watch for lockouts/WAF.
+
+- Test flows:
+  * password reset
+  * magic links
+  * invites
+  * SSO (parameter/binding)
+
+- Inspect tokens / JWT:
+  * alg, kid, exp, iss, aud
+  * verify signatures
+
+- Cookies:
+  * HttpOnly, Secure, SameSite
+  * try tampering only in labs; validate server checks
+
+- Useful commands / examples:
+
+  # Username fuzz (POST)
+  ffuf -w /path/usernames.txt -X POST \
+    -d "username=FUZZ&email=x&password=x&cpassword=x" \
+    -H "Content-Type: application/x-www-form-urlencoded" \
+    -u http://TARGET/customers/signup \
+    -mr "username already exists"
+
+  # Two-list credential guessing (throttle!)
+  ffuf -w users.txt:W1,/path/passwords_top100.txt:W2 -X POST \
+    -d "username=W1&password=W2" \
+    -H "Content-Type: application/x-www-form-urlencoded" \
+    -u http://TARGET/customers/login \
+    -fc 200
+
+  # Cookie behavior probe
+  curl -v -H "Cookie: logged_in=true; admin=false" http://TARGET/
+```

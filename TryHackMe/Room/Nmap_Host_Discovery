@@ -1,0 +1,81 @@
+# Nmap Host Discovery — TryHackMe (Junior Pentester)
+**Date:** 2025-10-02  
+**Type:** Classroom  
+**Scope:** Lab / Authorized only
+
+---
+
+## 1) Context
+Learn how Nmap discovers **live hosts** before port scanning using **ARP**, **ICMP**, and **TCP/UDP ping** techniques. Understand when to use each method (local vs routed networks) to reduce noise and focus scans on online systems.
+
+## 2) Initial hypothesis
+I already used Nmap but wanted to properly grasp its **concepts**—especially how host discovery works and which probes Nmap chooses depending on **privileges** and **target locality**.
+
+## 3) Tools used
+- Nmap (host discovery flags: `-sn`, `-PR`, `-PE`, `-PP`, `-PM`, `-PS`, `-PA`, `-PU`, `-n`, `-R`, `-iL`, `-sL`)
+- `arp-scan` (local L2 discovery)
+- tcpdump/Wireshark (observe ARP/ICMP)
+- Shell utilities (`whois`, `traceroute`) for context (optional)
+
+## 4) Approach (high level)
+- Determine **local vs remote** targets (subnet awareness).
+- Use **ARP** for local/L2; fall back to **ICMP / TCP SYN / UDP** for routed networks.
+- Combine probes when filtering is suspected (ICMP blocked, etc.).
+- Control **DNS lookups** (`-n`, `-R`) based on noise/privacy needs.
+- Run **privileged** where authorized to enable raw packet probes (ARP, SYN).
+
+## 5) Results / Evidence (sanitized)
+- Confirmed Nmap behavior:  
+  - **Local + sudo** → ARP discovery (fast, reliable).  
+  - **Remote + sudo** → ICMP Echo/Timestamp + TCP ACK/SYN mix.  
+  - **Unprivileged** → TCP handshakes to common ports.  
+- Demonstrated that **ICMP filtering** causes false negatives; **TCP/UDP probes** recover visibility.  
+*(Final state: host discovery workflows validated; no sensitive network data included.)*
+
+## 6) Recommended remediation
+- From defender perspective: filter/ratelimit **ICMP**, minimize **banner/DNS** leakage, monitor for scanning patterns, and segment networks.  
+- From tester perspective: always scan **within scope**; minimize probe sets and log timestamps/commands for reproducibility.
+
+## 7) Lessons learned
+- **ARP is king** on local links; it doesn’t cross routers.  
+- Privileges change Nmap’s probe choices and accuracy.  
+- ICMP alone is fragile—combine **ICMP + TCP SYN (+ UDP)**.  
+- DNS lookups are useful but noisy; `-n` keeps discovery quieter.
+
+## 8) Links / Resources
+- TryHackMe — *Junior Pentester* (room)  
+- `man nmap`, Nmap Reference Guide (host discovery)  
+- `arp-scan` wiki (Roy Hills)  
+- Notion: detailed public write-up
+
+## 9) Snippet
+**Snippet**
+```
+# ARP (local subnet, host discovery only)
+sudo nmap -PR -sn 192.168.1.0/24
+sudo arp-scan --localnet
+
+# ICMP Echo / Timestamp / Address-Mask (routed)
+sudo nmap -PE -sn 10.0.0.0/24        # ICMP Echo
+sudo nmap -PP -sn 10.0.0.0/24        # ICMP Timestamp
+sudo nmap -PM -sn 10.0.0.0/24        # ICMP Address Mask
+
+# TCP SYN / ACK pings (when ICMP is filtered)
+sudo nmap -PS80,443,22 -sn 10.0.0.0/24
+sudo nmap -PA22,80,443 -sn 10.0.0.0/24
+
+# UDP ping (expect ICMP port-unreachable replies)
+sudo nmap -PU53,161 -sn 10.0.0.0/24
+
+# Combined probes for resilience
+sudo nmap -PE -PS22,80,443 -PU53 -sn 10.0.0.0/24
+
+# Quieter scans (no reverse DNS)
+sudo nmap -n -PE -sn 10.0.0.0/24
+
+# Dry-run target listing (no probes; add -n to skip DNS)
+nmap -sL -n 10.0.0.0/24
+
+# File-driven targets
+sudo nmap -PR -sn -iL targets.txt
+```

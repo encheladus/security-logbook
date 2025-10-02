@@ -1,0 +1,95 @@
+# SSRF — TryHackMe (Junior Pentester)  
+**Date:** 2025-09-23  
+**Type:** Classroom  
+**Scope:** Lab / Authorized only
+
+---
+
+## 1) Context  
+Learn how to identify and exploit Server-Side Request Forgery (SSRF) vulnerabilities. The objective is to understand SSRF types (response-based vs blind), common exploitation patterns, impacts (internal service access, data exfiltration, metadata leakage) and defensive approaches.
+
+## 2) Initial hypothesis  
+This class would introduce SSRF practically: enough to recognise SSRF, understand typical impacts and mitigation principles, but not a full deep dive.
+
+## 3) Tools used  
+- Burp Suite (proxy + repeater)  
+- Burp Collaborator / RequestBin (OOB detection)  
+- curl / simple HTTP server for capture  
+- browser & HTML form inspection  
+(Only tools, no sensitive options or scripts.)
+
+## 4) Approach (high level)  
+- Identify inputs that cause server-side fetches: full-URL parameters, hidden fields, short host tokens or path fragments.  
+- Determine whether the behaviour is response-based or blind.  
+- Use an external receiver for blind cases to detect outbound requests.  
+- Try variations (absolute URLs, different schemes, path separators, traversal-like tricks, injected query separators, and short host fragments) to observe how the server composes requests.  
+- Sanitize findings and extract non-sensitive proof of concept.
+
+## 5) Results / Evidence (sanitized)  
+- Found SSRF in a form field (radio button value) rather than a visible URL parameter.  
+- Exploitation method: altering the radio button `value` to point to attacker-controlled or traversal-style paths caused the server to fetch the supplied resource.  
+- In the lab, the server returned an empty image but an internal `value` field contained the flag encoded in Base64.  
+- Impact observed (sanitized): server fetched internal resource and exposed sensitive data in a non-standard response field.  
+(Final state: `flag retrieved (base64) via altered form value` — no dumps or tokens included.)
+
+## 6) Recommended remediation  
+- Canonicalise and resolve hostnames server-side; compare resolved IPs to a strict allow-list of permitted IP ranges/hosts.  
+- Block egress to link-local and private IP ranges at the network/proxy layer (egress firewall).  
+- Avoid embedding sensitive credentials in outbound request headers; if required, scope and rotate keys regularly.  
+- Use idempotent safe defaults: validate and normalise inputs that control network requests; reject arbitrary URLs/hosts.  
+- Log and monitor outbound requests for anomalous destinations.
+
+## 7) Lessons learned  
+- SSRF manifests in many input shapes: full URLs, host tokens, path fragments, hidden fields.  
+- Two SSRF modes: **response-based** (you directly see responses) and **blind** (use OOB detection).  
+- Deny-lists are fragile; prefer allow-lists + canonicalisation + network egress controls.  
+- LFI and SSRF can overlap in practice but differ in scope: LFI reads local files, SSRF causes network requests.  
+- Testing in labs clarifies how server-side concatenation/canonicalisation affects exploitability.
+
+## 8) Links / Resources  
+- TryHackMe — *Junior Pentester* (room)  
+- Docs / references: OWASP SSRF, Burp Collaborator guides (add links in your repo)  
+- Notion: detailed write-up (public)
+
+## 9) Snippet
+**Snippet**
+```
+SSRF quick checklist:
+- Find input that accepts URLs/hosts/paths (full URL, host token, path fragment, hidden field).
+
+- Test types of SSRF:
+  * Response-based: use an attacker-controlled URL to observe returned content.
+  * Blind: use OOB callbacks (Burp Collaborator / RequestBin / self-hosted) to detect requests.
+
+- Try variations:
+  * absolute URLs
+  * different schemes (http/https)
+  * path separators
+  * injected query separators
+  * short host fragments that the app will expand
+
+- Test edge cases:
+  * DNS names that resolve to internal IPs
+  * /path traversal when the app prefixes host+path
+  * open-redirects on same domain as fallback
+
+- Validate impact:
+  * can the server reach internal-only services?
+  * does it leak headers/tokens?
+  * can you pivot to other services?
+
+- Safe tooling:
+  * Burp Collaborator
+  * RequestBin / Hookbin
+  * your own ephemeral HTTP server (labs only)
+  * Always use lab / authorized targets.
+
+- Defenses to check (and recommend):
+  * Canonicalise and resolve hostnames server-side and compare to an allow-list of IP ranges.
+  * Block outgoing egress to link-local and internal ranges at the network level.
+  * Do not embed sensitive credentials in outbound request headers; rotate and scope keys.
+  * Use network egress controls (proxy / firewall) + logging/monitoring for outbound requests.
+
+- Ethics reminder:
+  * Only perform these tests on systems you own or are explicitly authorized to test.
+```

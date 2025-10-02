@@ -1,0 +1,74 @@
+# Subdomain Enumeration Challenge - TakeOver — TryHackMe (Challenge)
+**Date:** 2025-10-01  
+**Type:** Lab  
+**Scope:** Lab / Authorized only
+
+---
+
+## 1) Context  
+Enumerate subdomains for `futurevera.thm` and identify the host that reveals the flag. The domain resolves locally (via `/etc/hosts` to `10.10.226.84`), so public OSINT is limited.
+
+## 2) Initial hypothesis  
+Reach the flag through subdomain enumeration (vhost fuzzing, DNS brute force, CT logs if applicable), then pivot to the vulnerable/relevant host.
+
+## 3) Tools used  
+- ffuf (vhost fuzzing, directory fuzzing)  
+- sublist3r, dnsrecon (trial; limited by local-only DNS)  
+- curl / wget (headers, redirects, save pages)  
+- OpenSSL (`s_client`) / browser (certificate & SAN inspection)  
+- crt.sh (not applicable here due to local-only domain)
+
+## 4) Approach (high level)  
+- Validate local resolution via `/etc/hosts`.  
+- Fuzz the `Host:` header against the IP (vhost discovery) and filter catch-all responses.  
+- Add discovered vhosts to `/etc/hosts`, verify via browser/`curl`.  
+- If stalled, inspect **TLS certificates** (CN/SAN) on discovered hosts.  
+- Check both **HTTPS:443** and **HTTP:80** for each vhost; follow redirects; test minimal requests before heavy scans.
+
+## 5) Results / Evidence (sanitized)  
+- Identified catch-all page (~`Size: 4605`) causing noise → filtered with `-fs 4605`.  
+- Discovered vhosts: `blog.futurevera.thm`, `support.futurevera.thm`.  
+- TLS cert SANs on `support` revealed the further clue.  
+- `curl` to HTTPS showed a redirect path; **HTTP on port 80** served the page containing the **flag**.  
+*(Final state: flag retrieved via `support.futurevera.thm` over HTTP; no sensitive tokens or keys exposed here.)*
+
+## 6) Recommended remediation  
+- Avoid leaking internal names in **certificate SANs**; limit SAN scope per vhost.  
+- Ensure parity of content and access controls between **HTTP:80** and **HTTPS:443**; redirect HTTP → HTTPS consistently.  
+- Disable/default-deny **catch-all** vhosts; return minimal responses to reduce reconnaissance signal.  
+- Monitor for anomalous Host headers and enumerate attempts.
+
+## 7) Lessons learned  
+- Local-only domains break public OSINT; prefer **vhost fuzzing** + certificate inspection.  
+- Identify and filter **default/catch-all** responses to surface real hits.  
+- Always test **both ports 80 and 443**; different content/redirects can hide flags.  
+- Use the **right wordlists** (DNS for vhosts, web-content for directories)—don’t use password lists for paths.
+
+## 8) Links / Resources  
+- TryHackMe — *Challenge* room  
+- SecLists (DNS & web-content wordlists)  
+- OpenSSL `s_client` docs (certificate inspection)  
+- Notion: detailed public write-up
+
+## 9) Snippet
+**Snippet**
+```
+# vhost fuzzing (filter catch-all size)
+ffuf -H "Host: FUZZ.futurevera.thm" \
+  -u https://10.10.226.84 \
+  -w /usr/share/wordlists/SecLists/Discovery/DNS/subdomains-top1million-110000.txt \
+  -fs 4605
+
+# verify candidate vhosts (HTTPS headers + redirects)
+curl -I -L -H "Host: support.futurevera.thm" https://10.10.226.84
+
+# check HTTP:80 explicitly (content differed in lab)
+curl -I -H "Host: support.futurevera.thm" http://10.10.226.84
+
+# inspect certificate SANs
+openssl s_client -connect 10.10.226.84:443 -servername support.futurevera.thm </dev/null 2>/dev/null \
+  | openssl x509 -noout -subject -issuer -ext subjectAltName
+
+# save page locally for review
+wget --header="Host: support.futurevera.thm" -O support.html http://10.10.226.84
+```
