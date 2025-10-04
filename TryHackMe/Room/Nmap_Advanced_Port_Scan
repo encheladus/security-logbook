@@ -1,0 +1,83 @@
+# Advanced Nmap Techniques — TryHackMe (Junior Pentester)  
+**Date:** 2025-10-04  
+**Type:** Classroom  
+**Scope:** Lab / Authorized only
+
+---
+
+## 1) Context
+Learn advanced Nmap techniques (Null/FIN/Xmas/Maimon/ACK/Window/Custom scans, Idle/Zombie, spoofing, decoys, fragmentation) and when they’re useful. Understand how TCP flags, firewalls/IDS, and OS quirks affect results—plus the caveats that make these tactics situational in modern networks.
+
+## 2) Initial hypothesis
+Weird-flag scans, decoys, and spoofing won’t magically bypass good defenses, but they’ll teach the interplay between TCP semantics and filters. Expect niche wins (labs/research/specific edges) and lots of ambiguity on hardened networks.
+
+## 3) Tools used
+- Nmap: `-sN -sF -sX -sM -sA -sW --scanflags … -sI -D -S --spoof-mac -f --mtu --data-length -v --reason`
+- tcpdump/Wireshark (to observe packets & reassembly behavior)
+
+## 4) Approach (high level)
+- Probe legacy/stateless behavior with **Null/FIN/Xmas/Maimon**; confirm interesting hits with **SYN/connect**.
+- Use **ACK/Window** to map **filtered vs unfiltered** (firewall policy), not service discovery.
+- Experiment (in lab) with **custom flags**, **fragmentation**, **decoys**, **MAC/IP spoofing** to see modern defenses respond.
+- Attempt **Idle/Zombie** only if a quiet host with predictable IP ID exists and paths allow.
+
+## 5) Results / Evidence (sanitized)
+- Null/FIN/Xmas/Maimon: mostly **open|filtered** (silence ambiguous).  
+- ACK/Window: useful for **filtered/unfiltered** mapping; not open/closed.  
+- Fragmentation (`-f/--mtu`): negligible effect vs reassembling middleboxes; sometimes induced false negatives.  
+- Idle (`-sI`): no stable zombie found; IP ID randomness/traffic spoiled measurements.  
+- Spoofing/decoys: educational; without visibility of replies, spoofing is blind.  
+*(Final state: techniques validated conceptually in lab; no sensitive targets or data disclosed.)*
+
+## 6) Recommended remediation
+- **Testing**: confirm odd results with `-sS`/`-sT`; add `--reason` and keep pcaps.  
+- **Defensive**: stateful filtering, normalization, IP-ID randomization, BCP38 egress filtering, strict reassembly & IDS.
+
+## 7) Lessons learned
+- **Silence ≠ open**: weird-flag scans commonly yield **open|filtered**.  
+- **ACK/Window** are for **policy mapping** only.  
+- **Idle scan** is elegant but fragile and rare in modern stacks.  
+- **Spoofing/decoys** help only with reply visibility and explicit authorization.  
+- **Fragmentation** is niche; verify with captures.
+
+## 8) Links / Resources
+- TryHackMe — *Junior Pentester* (room)  
+- Nmap Reference Guide (advanced scans, `--scanflags`, `-sI`)  
+- Pcaps for study (local lab captures)  
+- Notion: detailed public write-up
+
+## 9) Snippet
+**Snippet**
+```
+# Weird-flag trio (expect many open|filtered; confirm with SYN/connect)
+sudo nmap -sN -p 1-1024 TARGET
+sudo nmap -sF -p 1-1024 TARGET
+sudo nmap -sX -p 80,443 TARGET
+
+# Maimon (legacy quirk hunting)
+sudo nmap -sM -p 1-1024 TARGET
+
+# Firewall mapping (filtered vs unfiltered — not open/closed)
+sudo nmap -sA -p 22,80,443 TARGET
+sudo nmap -sW -p 22,80,443 TARGET
+
+# Custom flags (research)
+sudo nmap --scanflags URGACKPSHRSTSYNFIN -p 80 TARGET
+
+# Idle/Zombie (only with a valid predictable zombie)
+sudo nmap -sI ZOMBIE_IP:80 -p 22,80 TARGET
+
+# Decoys (your IP marked with ME)
+sudo nmap -D 10.10.0.2,10.10.0.3,ME -sS -p 22,80 TARGET
+
+# Source/MAC spoofing (replies must be capturable; L2-only for MAC)
+sudo nmap -e eth0 -Pn -S SPOOFED_IP -sS -p 80 TARGET
+sudo nmap --spoof-mac random -sS -p 80 TARGET
+
+# Fragmentation & padding (validate with pcaps)
+sudo nmap -sS -f -p 80 TARGET
+sudo nmap -sS --mtu 24 --data-length 100 -p 80 TARGET
+
+# Make conclusions explainable
+sudo nmap -v --reason -sS -p 22,80,443 -oA adv_scan TARGET
+```

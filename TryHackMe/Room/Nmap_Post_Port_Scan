@@ -1,0 +1,74 @@
+# Nmap Post Port Scan — TryHackMe (Junior Pentester)  
+**Date:** 2025-10-04  
+**Type:** Classroom  
+**Scope:** Lab / Authorized only
+
+---
+
+## 1) Context
+Understand how to identify **services/versions** (`-sV`), fingerprint **operating systems** (`-O`), leverage the **Nmap Scripting Engine (NSE)** for automated checks, and **save outputs** in reusable formats.
+
+## 2) Initial hypothesis
+Move beyond “ports open” to actionable findings: map real products/versions, get probabilistic OS guesses, use NSE for quick wins, and keep clean, comparable outputs.
+
+## 3) Tools used
+- Nmap: `-sV`, `--version-intensity`, `--version-all`, `-O`, `--osscan-guess`, `--traceroute`, `-sC/--script=…`, `-Pn`, `-oA/-oN/-oG/-oX`, `-v`, `--reason`
+- (Optional) Text tools for grepable/XML parsing
+
+## 4) Approach (high level)
+- Fast discovery → focus targets → **`-sV`** to turn ports into concrete services/versions.
+- **`-O`** for OS hints (best with ≥1 open + 1 closed TCP port, run with sudo).
+- Start NSE with **safe/default/version** scripts; escalate to **vuln/intrusive** only with authorization.
+- Always **save outputs** in multiple formats (`-oA`) with a clean naming scheme.
+
+## 5) Results / Evidence (sanitized)
+- `-sV` provided banner-based product/version IDs (actionable follow-ups).  
+- `-O` returned OS families with confidence; accuracy improved when one open + one closed port were observed.  
+- Safe/default NSE scripts added low-risk context; intrusive categories flagged as noisy.  
+*(Final state: techniques validated; no sensitive target data included.)*
+
+## 6) Recommended remediation
+- **Testing:** moderate `--version-intensity` (2–5), escalate only for key hosts; pair `-O` with sudo and ensure mixed port states.  
+- **Ops hygiene:** standardize outputs with `-oA <basename>`; include date/target in filenames; store in a structured folder.  
+- **Safety:** begin with `default,safe,version`; review Lua source before running `vuln/intrusive`.
+
+## 7) Lessons learned
+- `-sV` makes results **actionable** but is more **intrusive/slow** at high intensity.  
+- OS detection is **probabilistic** and sensitive to firewalls/NAT/virtualization.  
+- NSE is a **force multiplier**; category choice controls risk.  
+- Clean, consistent **output management** is key for comparison and reporting.
+
+## 8) Links / Resources
+- TryHackMe — *Junior Pentester* (room)  
+- Nmap Reference Guide (service/OS/NSE/options)  
+- Notion: detailed public write-up
+
+## 9) Snippet
+**Snippet**
+```
+# Quick: SYN + service versions on common ports
+sudo nmap -sS -sV --version-intensity 3 -T4 TARGET
+
+# Thorough versioning on specific ports
+sudo nmap -sS -sV --version-all -p 22,80,443 TARGET
+
+# If ping is filtered, skip host discovery
+sudo nmap -Pn -sS -sV -T3 TARGET
+
+# OS detection (better with ≥1 open & 1 closed port)
+sudo nmap -O --osscan-guess TARGET
+
+# All-in-one (OS + versions + default scripts + traceroute)
+sudo nmap -A --traceroute TARGET
+
+# NSE — safe start
+sudo nmap -sS -sV --script=default,safe,version -p 80,443 TARGET
+
+# NSE — targeted vuln checks (authorized only)
+sudo nmap --script=vuln -p 445 TARGET
+
+# Explain decisions + save outputs (normal/grepable/XML)
+sudo nmap -v --reason -sS -sV -p 22,80,443 -oA scans/TARGET_2025-10-04 TARGET
+
+# Note: run these only against systems you own or are explicitly authorized to test.
+```
