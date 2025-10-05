@@ -1,0 +1,53 @@
+# [Cleartext Protocols, MITM & TLS/SSH Hardening] — TryHackMe - Junior Pentester  
+**Date:** 2025-10-05  
+**Type:** Classroom  
+**Scope:** Lab / Authorized only
+
+---
+
+## 1) Context  
+Hands-on exploration of how cleartext protocols leak data and how attackers use sniffing and MITM. Then, practice practical mitigations: “encrypt everything” (TLS/SSH/VPN), stronger auth (MFA/keys), and hardening/detection controls.
+
+## 2) Initial hypothesis  
+Cleartext protocols are trivially sniffable and “use TLS/SSH” fixes that; I want to *see* attacks (packet capture, MITM, password guessing) and come away with a small set of repeatable checks/commands for labs and assessments.
+
+## 3) Tools used  
+tcpdump, Wireshark/tshark, OpenSSL (s_client), curl, telnet/ftp clients, ARP/DNS tools (arp, dig/nslookup), Burp/mitmproxy, Bettercap/Ettercap (lab), Hydra (authorized), SSH client/server.
+
+## 4) Approach (high level)  
+- Map the threat: where plaintext protocols still exist and what they expose.  
+- Demonstrate sniffing on legacy services; observe credentials/content in transit.  
+- Simulate on-path positioning (MITM) and note detection signals.  
+- Inspect TLS handshakes and certificates; compare with plain HTTP/POP3/FTP.  
+- Review SSH identity, key-based auth, and first-connection fingerprint trust.  
+- Assess password-attack surface; link defenses to attacker economics.  
+- Derive a mitigation checklist (encrypt, harden, monitor).
+
+## 5) Results / Evidence (sanitized)  
+- **Sniffing:** observed human-readable POP3 exchanges (USER/PASS) over port 110 in a controlled lab capture; confirmed HTTP headers/bodies readable in the clear.  
+- **MITM signals:** certificate-chain mismatches trigger browser warnings; ARP table showed anomalies during poisoning simulation; DNS answers differed from expected.  
+- **TLS:** handshake and cert inspection confirmed confidentiality/integrity once validated; plaintext leakage stopped on secure variants (POP3S/IMAPS/HTTPS).  
+- **SSH:** first-connection fingerprint prompt prevents blind MITM; subsequent connections trust `known_hosts`.  
+- **Passwords:** rate limits/MFA and slow hashes shift the cost; key-only SSH removes password attack surface.
+
+## 6) Recommended remediation  
+- **Encrypt in transit:** enforce HTTPS, IMAPS/POP3S/SMTPS, SFTP/FTPS, SSH; prefer implicit TLS or strict STARTTLS with validation; VPN for residual legacy flows.  
+- **Kill plaintext:** disable Telnet/FTP/POP3/IMAP where possible; or tightly isolate/allow-list.  
+- **Auth hardening:** MFA everywhere; block breached/common passwords; prefer SSH keys; restrict admin sources.  
+- **Server config:** modern TLS (disable TLS 1.0/1.1; PFS ciphers), HSTS, OCSP stapling; protect private keys.  
+- **Network controls:** port security, DHCP snooping, Dynamic ARP Inspection; segmentation; monitor for ARP/DNS anomalies.  
+- **Monitoring/response:** alert on spray/stuffing, TLS error spikes, unusual cert changes.
+
+## 7) Lessons learned  
+- Plaintext still pops up—one weak legacy service can leak creds.  
+- TLS stops passive sniffing; correct **certificate validation** blocks most active MITM.  
+- TLS ≠ total safety: app bugs, auth flaws, server misconfig, and client compromise remain exploitable.  
+- SSH hardening (keys-only, no root, allow-lists) is high-impact.  
+- Detection is about **correlating weak signals** (ARP/DNS/cert anomalies + logs).
+
+## 8) Links / Resources  
+- Room / machine link: TryHackMe — *Junior Pentester (Classroom)*  
+- Useful docs: TLS handshakes & cert basics; SSH hardening guides; password policy & slow hashing (Argon2/bcrypt/scrypt) references.  
+- Notion / detailed write-up (public): (add link to your full notes/snippets)
+
+---
