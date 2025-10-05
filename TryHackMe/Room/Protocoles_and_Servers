@@ -1,0 +1,121 @@
+# Protocols and servers — TryHackMe (Classroom)
+**Date:** 2025-10-05  
+**Type:** Classroom  
+**Scope:** Lab / Authorized only
+
+---
+
+## 1) Context
+See what GUI clients hide by speaking protocols directly: raw request/response flows for HTTP, FTP, SMTP, POP3, IMAP, and Telnet. Goal: learn quick one-liner probes, spot auth flows, and know which ports are cleartext vs TLS.
+
+## 2) Initial hypothesis
+I suspected the “same” services behave differently on the wire (auth steps, codes, line endings) and that secure variants (TLS/SSH) change how you must test. Expected to collect minimal hand-driven examples to debug without full clients.
+
+## 3) Tools used
+- `telnet`, `nc` (plain TCP speaks)  
+- `curl` (HTTP/S), `openssl s_client` (TLS handshakes)  
+- Built-in FTP/SMTP/POP3/IMAP servers/clients (lab)
+
+## 4) Approach (high level)
+- Connect by hand to default ports; send minimal valid commands.  
+- Note required headers/line endings and first response lines/banners.  
+- Repeat against secure ports (implicit TLS) or upgrade via STARTTLS.  
+- Capture gotchas (FTP PASV vs active, SMTP submission vs relay).
+
+## 5) Results / Evidence (sanitized)
+- **HTTP**: success only after `Host:` + blank line (`\r\n\r\n`).  
+- **FTP**: active-mode data channel blocked by firewall ⇒ **PASV** fixed listings.  
+- **SMTP**: auth refused on 25 (relay); **587 STARTTLS**/**465 TLS** worked.  
+- **POP3/IMAP**: plaintext on **110/143**; TLS required on **995/993** or via STARTTLS.  
+- **TLS checks**: plaintext to TLS ports looked garbled; **`openssl s_client`** solved it.  
+*(All examples used placeholder creds; final state: “understood raw dialogues and safe ports”.)*
+
+## 6) Recommended remediation
+- Prefer secure endpoints: **HTTPS 443**, **SMTPS 465 / 587+STARTTLS**, **IMAPS 993**, **POP3S 995**, **SSH 22** (not Telnet).  
+- **Disable cleartext listeners** where possible (23/21/110/143/25 auth).  
+- Enforce **STARTTLS** and strong ciphers; HSTS for web.  
+- Minimize banners; rate-limit and monitor auth; use MFA where applicable.
+
+## 7) Lessons learned
+- These protocols are just **text over TCP** until TLS starts; tiny formatting errors break flows.  
+- **Ports imply policy**: 25 ≠ submission; 587/465 do. POP3/IMAP differ from SMTP auth steps.  
+- **FTP PASV** avoids NAT/firewall pain; active often fails.  
+- Use **`openssl s_client`** first on TLS services; then speak the protocol.  
+- Don’t paste real creds in notes; use placeholders.
+
+## 8) Links / Resources
+- Nmap & OpenSSL man pages (hand testing TLS)  
+- RFC quick refs (HTTP/SMTP/POP3/IMAP)  
+- Your lab notes / captures
+
+## 9) Snippet
+**Snippet**
+```
+# ---------- HTTP ----------
+# Raw GET via netcat
+{ printf 'GET / HTTP/1.1\r\nHost: 10.10.71.249\r\n\r\n'; } | nc 10.10.71.249 80
+
+# Verbose curl (HTTP)
+curl -v http://10.10.71.249/
+
+# HTTPS handshake + GET (show cert chain)
+openssl s_client -connect example.com:443 -servername example.com </dev/null
+
+# Verbose curl with insecure TLS (show headers/body)
+curl -vk https://example.com/
+
+# ---------- FTP ----------
+# Telnet to FTP (banner/interact)
+telnet 10.10.71.249 21
+
+# Typical FTP CLI sequence (passive mode example)
+# USER alice
+# PASS ****
+# PASV
+# LIST
+
+# Use system ftp client (defaults to PASV)
+ftp 10.10.71.249
+
+# ---------- SMTP ----------
+# SMTP (server-to-server usually no AUTH)
+telnet mail.example.com 25
+
+# STARTTLS + connect (submission)
+openssl s_client -starttls smtp -connect mail.example.com:587
+
+# Example SMTP flow after connect:
+# EHLO yourhost
+# AUTH LOGIN (if supported)
+# MAIL FROM:<you@domain>
+# RCPT TO:<target@domain>
+# DATA
+# <message body>
+# .
+
+# ---------- POP3 ----------
+# Plain POP3
+telnet mail.example.com 110
+# Example commands:
+# USER alice
+# PASS ****
+# STAT / LIST / RETR 1 / QUIT
+
+# POP3S (TLS)
+openssl s_client -connect mail.example.com:995
+
+# ---------- IMAP ----------
+# Plain IMAP
+telnet mail.example.com 143
+# Example: * OK ... then: a1 STARTTLS ; a2 LOGIN user pass ; a3 LIST "" "*"
+
+# IMAPS (TLS)
+openssl s_client -connect mail.example.com:993
+
+# ---------- Telnet vs generic TCP ----------
+# Real Telnet (Telnet protocol)
+telnet <host> 23
+
+# Generic TCP probe for any text protocol / banner grabbing
+nc <host> <port>
+```
