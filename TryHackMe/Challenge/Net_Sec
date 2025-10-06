@@ -1,0 +1,53 @@
+# [Net Sec Challenge] — TryHackMe - Junior Pentester  
+**Date:** 2025-10-06  
+**Type:** Challenge  
+**Scope:** Lab / Authorized only
+
+---
+
+## 1) Context  
+Hands-on validation of Network Security skills using only `nmap`, `telnet`, and `hydra` (optionally `curl`). Tasks cover port discovery (incl. high ports), service banners, HTTP/SSH header flags, and FTP over a nonstandard port with passive-mode data transfer.
+
+## 2) Initial hypothesis  
+A minimal toolkit is sufficient: `nmap` for discovery, `telnet` for banners and protocol dialogue, `hydra` for credential testing, and `curl` for HTTP headers.
+
+## 3) Tools used  
+nmap, telnet, hydra, curl (headers), netcat (`nc`) for FTP PASV data socket.
+
+## 4) Approach (high level)  
+- **Recon:** quick top-ports scan, then full TCP sweep to catch high ports.  
+- **Banners/headers:** read SSH/HTTP banners (no auth) to capture flags.  
+- **Service ID:** connect via `telnet` to the nonstandard FTP port to get server/version.  
+- **FTP PASV flow:** log in, switch to passive mode, open data socket, then `LIST/RETR`.  
+- **Cred testing:** focused `hydra` runs against known usernames on the discovered FTP port.  
+- **Web check:** probe port 8080 after a “silent” scan to note filtering behavior.
+
+## 5) Results / Evidence (sanitized)  
+- Highest open port < 10,000: obtained from fast `nmap` output.  
+- Additional open port > 10,000: found via `-p-` sweep.  
+- Total open TCP ports: counted from `nmap` summary.  
+- **HTTP flag:** present in response headers (`curl -I`).  
+- **SSH flag:** present in initial SSH banner via `telnet` to 22 (no login).  
+- **FTP:** server/version identified on nonstandard port; credentials for users were tested; `quinn` account contained `ftp_flag.txt` retrievable via PASV (`RETR ftp_flag.txt`).  
+- **Port 8080:** reachable challenge confirmed after quiet scan probe.
+
+## 6) Recommended remediation  
+- Enforce **encryption in transit** (HTTPS/IMAPS/POP3S/SMTPS/SFTP/SSH); disable legacy plaintext services.  
+- Implement **MFA**, rate limiting, and breached-password blocking; prefer key-based SSH and restrict admin source IPs.  
+- Maintain **modern TLS configs** (no TLS 1.0/1.1; PFS suites; HSTS; OCSP stapling); secure private keys.  
+- Monitor for **banner/headers exposure** of sensitive info; minimize identifying server/version strings where possible.  
+- **Network hardening:** segmentation, port-security controls; detect ARP/DNS anomalies.
+
+## 7) Lessons learned  
+- Two-phase scanning (fast → full) avoids missing high ports.  
+- Many flags are in **banners/headers** — no auth needed.  
+- **FTP PASV** requires a second (data) socket; compute port from `227`.  
+- Keep `hydra` **gentle and scoped** to avoid noisy lockouts.  
+- “Silent” scans (`-sN`) can hint at filtering/firewall behavior.
+
+## 8) Links / Resources  
+- Room: TryHackMe — *Junior Pentester*  
+- Cheats: nmap, curl headers, FTP PASV basics  
+- (Add) Public write-up link if you publish one
+
+---
