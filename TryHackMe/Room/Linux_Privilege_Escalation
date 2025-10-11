@@ -1,0 +1,48 @@
+# [Linux Privilege Escalation — Enumeration to Exploitation] — TryHackMe - Junior Pentester  
+**Date:** 2025-10-11  
+**Type:** Classroom  
+**Scope:** Lab / Authorized only
+
+---
+
+## 1) Context  
+Fundamentals of **Linux privilege escalation**: systematic enumeration, at least 8 escalation vectors (sudo, SUID, capabilities, PATH, cron, kernel, NFS, services), post-exploitation hygiene (stabilize shells, harvest creds, escalate safely), and clean-up.
+
+## 2) Initial hypothesis  
+I have a low-privilege user shell and want to understand practical paths to **root**. Expectation: most wins come from **misconfigurations**, not 0-days; disciplined enumeration + quick-win prioritization beats chasing kernel exploits.
+
+## 3) Tools used  
+Built-ins (`id`, `uname`, `ps`, `ss/netstat`, `find`, `getcap`, `sudo -l`), editors, `rlwrap`, `socat`, automated enum (linPEAS, LinEnum, LES/LSE), GTFOBins, simple HTTP server for file transfer.
+
+## 4) Approach (high level)  
+- **Stabilize** the shell (PTY/`socat`) to work reliably.  
+- **Enumerate** system, users, services, network, file perms, scheduled tasks.  
+- **Prioritize** low-risk/high-yield vectors: `sudo -l` → SUID → capabilities → PATH/cron/service misconfigs → creds → NFS → kernel.  
+- **Research & validate** each lead (GTFOBins, man pages) before executing.  
+- **Escalate** with minimal footprint; **clean up** artifacts and logs where appropriate.
+
+## 5) Results / Evidence (sanitized)  
+- Built a repeatable **enum checklist** (system, processes, network, files, sudo, SUID, caps).  
+- Practiced **8+ techniques**: sudo abuse, LD_PRELOAD concept, SUID & GTFOBins, capabilities, PATH hijack, cron/service misuse, NFS `no_root_squash`, kernel suggesters.  
+- Confirmed **automated scripts are noisy** → manual verification surfaced the true quick win.  
+- Demonstrated **shell stabilization** (PTY/`socat`) enabling safe edits and service tests.
+
+## 6) Recommended remediation  
+- **Least privilege & hardening:** minimize sudo rules; use absolute paths in privileged scripts; restrict and audit cron/systemd units.  
+- **Remove risky bits:** avoid custom SUID binaries; review `getcap` output; disable `no_root_squash`; lock down world-writable dirs.  
+- **Patch & monitor:** keep kernel/services updated; monitor for suspicious file perms and scheduled tasks.  
+- **Secrets hygiene:** eliminate plaintext creds; protect keys/configs; rotate on compromise.  
+- **Defense-in-depth:** EDR, logging, file integrity monitoring, and segmentation.
+
+## 7) Lessons learned  
+- **Order of ops matters:** enum → quick wins → deeper checks saves hours.  
+- **Misconfig > 0-days** in most labs.  
+- **`sudo -l` + GTFOBins** = highest ROI.  
+- **Stable TTY** (PTY/`socat`) makes escalation and cleanup far less error-prone.
+
+## 8) Links / Resources  
+- linPEAS, LinEnum, Linux Exploit Suggester / LSE  
+- GTFOBins (sudo/SUID/caps techniques)  
+- man pages for `sudoers`, `cron`, `systemd`, `capabilities(7)`
+
+---
