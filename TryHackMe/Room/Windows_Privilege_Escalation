@@ -1,0 +1,54 @@
+# [Windows Privilege Escalation — fundamentals & lab techniques] — TryHackMe - Junior Pentester  
+**Date:** 2025-10-12  
+**Type:** Classroom  
+**Scope:** Lab / Authorized only
+
+---
+
+## 1) Context  
+Introduction to Windows privilege escalation: enumeration, common weak points (services, scheduled tasks, registry, saved credentials), practical techniques (SeBackup/SeRestore, SeTakeOwnership, AlwaysInstallElevated, service DACLs, unquoted paths), and safe lab workflows to move from a standard user to Administrator / SYSTEM.
+
+## 2) Initial hypothesis  
+I have a non-admin Windows account. The goal is to learn reliable, safe steps attackers or pentesters use to escalate privileges in a lab: gather evidence, prioritise promising vectors, validate in isolation, and avoid destructive kernel/exploit attempts unless necessary.
+
+## 3) Tools used  
+Built-ins: `whoami`, `systeminfo`, `sc`, `icacls`, `reg query`, `schtasks`, `cmdkey`, `findstr`.  
+Enumeration / suggester tools: WinPEAS, PrivescCheck (PowerShell), WES-NG, Metasploit local_exploit_suggester.  
+Post-enum tooling: Impacket (secretsdump/psexec, smbserver.py) for lab-only credential exercises. AccessChk (SysInternals) for service DACL checks.
+
+## 4) Approach (high level)  
+- **Stage 1 — Triage:** run quick commands (`whoami /groups`, `whoami /priv`, `systeminfo`) to orient.  
+- **Stage 2 — Enumerate:** search for unattended installs, PowerShell history, saved credentials, IIS/web.config secrets, installed software and versions, scheduled tasks, service configs, SUID-like Windows misconfigs (file perms, writable service executables), PATH issues, NFS/SMB shares. Use WinPEAS/PrivescCheck as a lead generator, but verify manually.  
+- **Stage 3 — Research:** map discovered software/versions to CVEs (Exploit-DB, NVD) and research mitigation/impact; treat findings as lab leads.  
+- **Stage 4 — Validate & escalate (lab only):** attempt safe, minimal-impact escalations: exploit writable service binary, schedule task replacement, AlwaysInstallElevated MSI (only if both HKCU & HKLM flags enabled), backup/restore secrets via SeBackup where permitted. Use snapshots and isolated VMs.  
+- **Stage 5 — Cleanup & report:** remove artifacts, document exact commands, PoC sources and any changes.
+
+## 5) Results / Evidence (sanitized)  
+- Confirmed high-value enumeration locations: unattended/sysprep XMLs, PowerShell PSReadLine history, Credential Manager (`cmdkey`), `web.config` connection strings, `wmic product` partial inventory.  
+- Demonstrated quick wins in lab: scheduled task overwrite (if task target writable), taking ownership + replacing `utilman.exe` (lab-only), abusing `AlwaysInstallElevated` when both HKCU/HKLM enabled, extracting hives via SeBackup and using Impacket `secretsdump.py` in lab.  
+- Validated toolchain usefulness: WinPEAS and PrivescCheck surface many leads but require manual triage; WES-NG helps focus kernel/CVE research without running code on the target.
+
+## 6) Recommended remediation  
+- Remove plaintext secrets from unattended files and config; rotate credentials if discovered.  
+- Harden workstations: restrict write perms on service binaries and folders, quote service paths, remove `Everyone`/broad permissions.  
+- Disable `AlwaysInstallElevated` in both HKCU and HKLM; monitor MSI policy changes.  
+- Limit which accounts have SeBackup/SeRestore/SeTakeOwnership-like rights; audit privileges and service DACLs.  
+- Enforce least privilege for scheduled tasks and use absolute paths in scripts.  
+- Monitor for anomalous service reconfiguration or new listeners; use EDR/IDS and file-integrity monitoring.
+
+## 7) Lessons learned  
+- Windows privilege escalation is mostly about misconfiguration and leftover secrets rather than zero-days.  
+- Automated enumerators are extremely useful for speed but noisy—always verify top leads manually (`icacls`, `sc qc`, `reg query`, etc.).  
+- Simple checks (`whoami /priv`, `cmdkey /list`, `schtasks /query /v`) should be run on every target to prioritize effort.  
+- Knowing the semantics of key privileges (SeBackup/SeRestore, SeTakeOwnership, SeImpersonate) is critical to understanding why an escalation vector works.  
+- Use defensible, non-destructive lab procedures: snapshots, private networks, and documented steps.
+
+## 8) Links / Resources  
+- WinPEAS — https://github.com/carlospolop/PEASS-ng  
+- PrivescCheck (PowerShell) — https://github.com/itm4n/PrivescCheck  
+- WES-NG — Windows Exploit Suggester - Next Generation  
+- Impacket (secretsdump/psexec/smbserver.py) — https://github.com/SecureAuthCorp/impacket  
+- Exploit-DB / NVD / MITRE CVE for researched CVEs  
+- Sysinternals AccessChk — https://docs.microsoft.com/sysinternals
+
+---
