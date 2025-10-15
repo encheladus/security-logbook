@@ -1,0 +1,59 @@
+# Upload Vulnerabilities — TryHackMe
+**Date:** 2025-10-15  
+**Type:** TryHackMe (Classroom)  
+**Scope:** Lab / Authorized only
+
+---
+
+## 1) Context
+Short, guided module on file-upload vulnerabilities: how to **discover**, **classify**, **validate**, and **mitigate** risks from user-supplied files, with a focus on safe patterns and defensible remediation for dev/ops.
+
+## 2) Initial hypothesis
+Strengthen my understanding of **what** makes upload flows vulnerable and **how** those weaknesses are exploited/mitigated—building on prior Junior Pentester path notes.
+
+## 3) Tools used
+- Burp Suite (proxy/interceptor/replay)
+- OWASP ZAP (alt. proxy)
+- Browser DevTools
+- Wappalyzer (tech fingerprint)
+- `curl` (HTTP baselines)
+- Gobuster / ffuf (directory discovery)
+
+> Note: No credentials, options, or sensitive scripts stored here.
+
+## 4) Approach (high level)
+- Recon the application and enumerate upload surfaces (forms, preview endpoints, storage paths).
+- Inspect **client-side** logic (JS, HTML attributes) vs. **server-side** behavior (responses, headers, status codes).
+- Establish a **baseline** upload to learn naming, storage, serving domain, and headers.
+- Iterate hypothesis-driven probes (change *one* variable at a time: extension, MIME, magic bytes, size) to infer active server checks.
+- Document observations cleanly for remediation (what’s enforced, what’s missing, recommended controls).
+
+## 5) Results / Evidence (sanitized)
+- Room was well guided; no blockers encountered.
+- Confirmed the conceptual workflow for testing upload pipelines and interpreting responses.
+- Emphasis captured on safe serving patterns (headers, storage outside web root) and layered validation.
+- No sensitive payloads, credentials, or exploit chains stored in this log.
+
+## 6) Recommended remediation
+- **Treat uploads as data, never code.** Store outside web root; serve via proxy/signed URLs.
+- **Layered validation:** extension (UX) + header MIME + **magic-byte** checks + size/quantity limits.
+- **Safe delivery headers:** `Content-Disposition: attachment` and `X-Content-Type-Options: nosniff`; ensure accurate `Content-Type`.
+- **Isolation & least privilege:** non-executable upload dirs; sandboxed processors/workers; minimal FS permissions.
+- **Hygiene:** sanitize filenames (no traversal), randomize keys/paths to avoid collisions/enumeration.
+- **Observability:** log and alert on anomalies (odd extensions, repeated rejections, spikes).
+
+## 7) Lessons learned
+- Robust upload security is **layered**; server-side enforcement is the only authority.
+- Magic-byte validation meaningfully raises the bar, but risky/container formats (SVG/HTML/PDF/Office, polyglots) still need extra scrutiny or sanitization.
+- Storage location and headers dramatically influence exploitability (web root vs. object store; `nosniff` + `attachment`).
+- Change variables **atomically** when testing to avoid misattribution and to produce defensible evidence.
+
+---
+
+## 8) Links / Resources
+- TryHackMe room: **Web Fundamentals** (upload module section)
+- Docs / references (general):
+  - OWASP Cheat Sheet: File Upload Security
+  - Platform notes: personal Notion (detailed write-up)
+
+---
