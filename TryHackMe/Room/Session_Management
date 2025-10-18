@@ -1,0 +1,65 @@
+# Session Management — TryHackMe - Web App Pentesting
+**Date:** 2025-10-18  
+**Type:** Classroom  
+**Scope:** Lab / Authorized only
+
+---
+
+## 1) Context
+Learned how web apps create, track, expire, and terminate **sessions**. Reviewed where weak implementations leak or allow abuse (fixation, hijacking, replay, CSRF/XSS-driven theft, missing revocation), and how to document/mitigate them.
+
+## 2) Initial hypothesis
+- Deepen understanding of **how sessions work** and **where they fail**.
+- Expect to find/observe subtle design flaws (weak IDs, no rotation, lax cookie flags, long TTLs, weak logout) that enable impersonation or escalation.
+
+## 3) Tools used
+- Burp Suite / OWASP ZAP (intercept, repeat)
+- Browser DevTools (cookies/storage)
+- `curl` (headers, replay), `jq` (JWT payload view), `base64`
+- Wordlists/dir tools (only for mapping, not needed for core session checks)
+
+> No credentials, tokens, or sensitive scripts stored here.
+
+## 4) Approach (high level)
+- **Map lifecycle:** creation → tracking → expiry → termination. Note cookie/token names.
+- **Inspect transport & flags:** `Set-Cookie` presence of **Secure/HttpOnly/SameSite**, `Path`, domain scope; HTTPS-only.
+- **Rotation checks:** ensure new session ID **after login** and on privilege change (prevents fixation).
+- **Authorization binding:** verify per-request authz (object ownership, role checks) not just “has session”.
+- **Expiry/timeout:** validate idle vs absolute timeouts; sensitive-action re-auth.
+- **Logout/revocation:** confirm server-side invalidation (opaque IDs) or refresh-token revocation (JWT).
+- **JWT sanity (if used):** signature algorithm, `exp/iat/aud/iss`, no `none`, short-lived access + rotated refresh.
+- **CSRF vs XSS trade-offs:** Cookies need CSRF defenses; bearer tokens need XSS minimization (no `localStorage` if possible).
+
+## 5) Results / Evidence (sanitized)
+Module was guided; below is the **evidence set to capture** when validating a target:
+- **Cookie flags:** `Set-Cookie: session=...; Secure; HttpOnly; SameSite=Lax|Strict; Path=/`
+- **Rotation proof:** different `session` value pre-login vs post-login; new value on role elevation.
+- **Expiry behavior:** idle timeout returns 401/redirect; old cookie rejected.
+- **Logout:** post-logout, previous cookie **cannot** access endpoints (server-side invalidation observed).
+- **JWT checks (if present):** valid signature; short `exp`; no `alg: none`; claims minimal and validated.
+- **AuthZ:** resource IDs checked against session user (no IDOR).
+
+## 6) Recommended remediation
+- **Opaque, random, long** session IDs from CSPRNG; never derive from user data.
+- Set **Secure; HttpOnly; SameSite=Strict|Lax**; always use **HTTPS**.
+- **Rotate** session ID on login and on privilege elevation.
+- **Short TTLs** for access; use refresh-token rotation or server-stored sessions when revocation is required.
+- **Invalidate** on logout and password reset; keep a server-side denylist for refresh tokens if using JWTs.
+- Enforce **per-request authorization** (owner/role checks), not just presence of a session.
+- Add **CSRF defenses** (SameSite + anti-CSRF tokens) for cookie auth; minimize **XSS risk** (CSP, output encoding, avoid storing bearer tokens in `localStorage`).
+- **Log** session lifecycle events (creation, rotation, logout, invalid reuse) with IP/UA for accountability.
+
+## 7) Lessons learned
+- Session security is **end-to-end**: creation, rotation, transport, storage, expiry, and revocation all matter.
+- Cookies with **HttpOnly** resist XSS theft but need **CSRF** controls; bearer tokens ease APIs but heighten **XSS** risk if stored in JS-accessible places.
+- **Rotate on login** and keep **short TTLs** to blunt fixation/replay.
+- “Logout” is only real when the **server forgets** the session (and refresh tokens).
+
+---
+
+## 8) Links / Resources
+- TryHackMe — Web App Pentesting (Session Management)
+- OWASP Cheat Sheets: Session Management, Authentication, Forgot Password
+- JWT Best Practices (claims, expiry, rotation)
+
+---
