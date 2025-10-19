@@ -1,0 +1,69 @@
+# JSON Web Tokens (JWT) — TryHackMe **Date:** 2025-10-19  
+**Type:** Classroom  
+**Scope:** Lab / Authorized only  
+
+---
+
+## 1) Context  
+Learn about JWTs, where they are used, and how they need to be secured.  
+This lab introduces the structure, purpose, and common security issues of JSON Web Tokens in modern web authentication systems.
+
+---
+
+## 2) Initial Hypothesis  
+I expected to learn how JWTs work, how they differ from traditional session management, and what common vulnerabilities arise from poor implementation — such as insecure secrets or the use of `"alg": "none"`.
+
+---
+
+## 3) Tools Used  
+- TryHackMe Classroom environment  
+- [jwt.io](https://jwt.io/) (token decoder)  
+- Postman (API testing)  
+- Burp Suite (intercepting API requests)  
+
+---
+
+## 4) Approach (High Level)  
+1. Reviewed the concepts of token-based authentication and how APIs rely on JWTs.  
+2. Examined JWT structure (`header.payload.signature`) and decoded several examples.  
+3. Observed how signature validation works and tested what happens when payload values are altered.  
+4. Studied common JWT weaknesses: weak secrets, “none” algorithm, missing `exp`/`aud` checks.  
+5. Compared symmetric (HS256) vs asymmetric (RS256) signing approaches.  
+
+---
+
+## 5) Results / Evidence (Sanitized)  
+- Successfully decoded JWTs to observe claims and structure.  
+- Learned that the payload is **Base64-encoded, not encrypted**, making it readable by anyone.  
+- Changing a payload without updating the signature caused validation failure — proving integrity protection works.  
+- Discovered how insecure configurations (`"alg": "none"`) or weak secrets can allow attackers to forge tokens.  
+- Understood that long-lived or cross-service tokens increase replay and privilege escalation risks.  
+
+---
+
+## 6) Recommended Remediation  
+- Never include sensitive data (passwords, internal IPs, flags) in JWT payloads.  
+- Explicitly disable `"alg": "none"` and enforce accepted algorithms.  
+- Use strong, random, high-entropy secrets or switch to asymmetric signing (RS256).  
+- Validate `exp` (expiration) and `aud` (audience) claims on every request.  
+- Issue short-lived tokens and, if necessary, implement token revocation via blocklists.  
+
+---
+
+## 7) Lessons Learned  
+- JWTs are **encoded, not encrypted** — never trust obfuscation for secrecy.  
+- The **signature ensures integrity**; without it, tokens can be tampered with.  
+- Algorithm confusion (RS256 vs HS256) can lead to serious security flaws.  
+- Token expiration and audience validation are essential for security.  
+- JWTs simplify authentication across distributed systems, but poor implementation can make them dangerous.  
+
+---
+
+## 8) Links / Resources  
+- [TryHackMe: Web Application Pentester – JWTs](https://tryhackme.com/)  
+- [jwt.io Decoder](https://jwt.io/)  
+- [Postman API Platform](https://www.postman.com/)  
+- [OpenAPI / Swagger Docs](https://swagger.io/)  
+- Personal detailed notes on Notion (private)  
+
+---
