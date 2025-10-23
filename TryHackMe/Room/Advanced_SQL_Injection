@@ -1,0 +1,86 @@
+# Advanced SQL Injection — TryHackMe **Date:** 2025-10-23
+**Type:** Classroom
+**Scope:** Lab / Authorized only
+
+---
+
+## 1) Context
+Learn advanced injection techniques to exploit web applications.  
+This note covers SQLi categories (in-band, blind, OOB, second-order), filter-evasion techniques (encoding, no-quote, no-space), OOB channels, header/stored-proc/structured-payload vectors, automation limits, and practical mitigation advice for defenders and tactics for testers.
+
+---
+
+## 2) Initial Hypothesis
+SQL injection remains widespread. My goal was to review the main SQLi classes, learn evasion tricks when filters are present, understand OOB exfiltration options, and assemble a practical checklist for pentesting and remediation.
+
+---
+
+## 3) Tools Used
+- Manual testing (browser + DevTools)  
+- nmap / basic recon (when needed)  
+- Burp Suite (proxy/intercept)  
+- sqlmap / sqlninja / BBQSQL (automation & blind cases)  
+- Custom payloads (encoding, CHAR(), CONCAT(), comment tricks)
+
+---
+
+## 4) Approach (High Level)
+1. Establish baseline responses (control `AND 1=1` vs `AND 1=2`) across URL params, POST bodies, cookies, and headers.  
+2. Fingerprint DBMS using timing functions (MySQL `SLEEP()`, MSSQL `WAITFOR DELAY`, PostgreSQL `pg_sleep()`).  
+3. Try in-band techniques (error-based, UNION) where verbose feedback exists.  
+4. If suppressed, switch to blind (boolean/time-based) or plan OOB channels.  
+5. When filters appear, apply evasion: encoding, no-quote methods, comment/encoded spaces, dynamic string builders (`CHAR()` / `CONCAT()`).  
+6. Use automation (sqlmap, etc.) only after manual confirmation and with tuned tamper scripts / DB hints.  
+7. Check for second-order flows by storing markers and reviewing downstream usage.  
+8. Validate findings with repeated trials (medians for timing); document payload → response → inference.
+
+---
+
+## 5) Results / Evidence (Sanitized)
+- **Types confirmed:**  
+  - **In-band** (error/UNION) — fast, direct, noisy.  
+  - **Blind (boolean/time)** — slower, stealthier; reliable with repeated measures.  
+  - **Out-of-band (OOB)** — uses HTTP/DNS/SMB when in-band is blocked.  
+  - **Second-order** — stored payload executes later in a different query.
+- **Filter evasion:** encoded whitespace, comment-splitting (`UN/**/ION`), `CHAR()`/hex literals, `CONCAT()` for string-building when quotes blocked.  
+- **Alternate inputs:** cookies and headers (e.g., `User-Agent`, `X-Forwarded-For`) are valid injection vectors when logged or stored.  
+- **OOB feasibility:** depends on DB features and host egress (e.g., `UTL_HTTP`, `xp_cmdshell`, DNS callbacks).  
+- **Automation:** worked after providing the exact intercepted request/cookies, DBMS hints, tamper scripts, and stable timing thresholds.
+
+---
+
+## 6) Recommended Remediation
+**For developers**
+- Use **parameterized queries / prepared statements** everywhere.  
+- Validate on the server: types, lengths, formats; reject unexpected inputs.  
+- **Least privilege** DB accounts; avoid admin/owner for the app.  
+- Stored procedures: **no dynamic SQL**; validate proc params.  
+- Treat headers as untrusted; sanitize/redact before logging or DB writes.  
+- Disable/tightly control risky DB features (e.g., `xp_cmdshell`, UDFs with file/network access).  
+- Restrict outbound connectivity from DB hosts; monitor DNS/HTTP/SMB egress.  
+- WAF/monitoring as **defense-in-depth**, not primary control; log and alert suspicious patterns.
+
+**For ops/security**
+- Alert on unusual outbound DNS/HTTP and long sleeps/time-based signatures.  
+- Monitor atypical stored-procedure usage and large UNION-like responses.  
+- Code reviews, dependency hygiene, and static analysis for concatenated SQL.
+
+---
+
+## 7) Lessons Learned
+- **Baseline first** — compare normal vs `AND 1=1` / `AND 1=2`.  
+- **Fingerprint DBMS early** — payloads are backend-specific.  
+- **Filters are puzzles** — use encoding, comments, functions to bypass naïve blocks.  
+- **Blind/time-based** — repeat and use medians; avoid judging from single slow responses.  
+- **Second-order** — test full workflows; stored data can become code.  
+- **Automation ≠ magic** — it’s powerful once you feed the right request, cookies, DB hints, and tamper rules.
+
+---
+
+## 8) Links / Resources
+- sqlmap (automation) — use with care and precise configuration  
+- OWASP SQL Injection & Testing Guide  
+- DBMS docs for OOB primitives (MySQL, MSSQL, PostgreSQL, Oracle)  
+- BBQSQL (blind extraction), supporting DNS/HTTP collectors for OOB
+
+---
