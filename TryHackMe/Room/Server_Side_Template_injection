@@ -1,0 +1,62 @@
+# Server-side Template Injection — TryHackMe - Web Application Pentesting  
+**Date:** 2025-10-26  
+**Type:** TryHackMe (Classroom)  
+**Scope:** Lab / Authorized only
+
+---
+
+## 1) Context
+**Short summary (1–3 lines):**  
+Hands-on exploration of Server-Side Template Injection (SSTI) across multiple template engines (Jinja2, Pug/Jade, Smarty). Objective: detect engine, adapt payloads, and understand how SSTI can escalate to file access or remote code execution (RCE).
+
+## 2) Initial hypothesis
+What I expected before starting: template syntax like `{{ something }}` is used only to display values and is safe. I suspected a bug in templating might allow more than simple display — possibly expression evaluation — but I did not grasp how evaluation could lead to RCE.
+
+## 3) Tools used
+Short list: Burp Suite (intercept / repeater), curl, a browser, and SSTImap (automation reference).  
+— **do not** include options, credentials, or sensitive scripts.
+
+## 4) Approach (high level)
+- Inspect responses for unescaped template syntax (`{{ }}`, `{% %}`, `#{}`).
+- Inject small expression tests (math / string ops) to detect evaluation and to fingerprint the engine.
+- Once engine fingerprinted, craft engine-specific payloads that escalate from information disclosure to OS command execution (adapting syntax and argument passing).
+- Use automation (SSTImap) as a verification step after manual confirmation.
+
+## 5) Results / Evidence (sanitized)
+What I observed:
+- Detection: simple math/string injections revealed server-side evaluation (e.g., `{{ 7*7 }}` → `49`, `#{7*7}` → `49`, `{'Hello'|upper}` → `HELLO`), allowing reliable engine fingerprinting.
+- Impact: where templates evaluated attacker-controlled expressions, it was possible to reach runtime objects and execute commands (proof: rendered page contained command output).  
+- Example sanitized evidence: *final state: server rendered attacker-supplied expression and returned output of executed command (`ls` output shown in rendered HTML)*.
+
+## 6) Recommended remediation
+Generic technical measures:
+- Escape user input by default; do not render untrusted input as template code (use autoescape / explicit escaping filters).
+- Disable dangerous features (e.g., Smarty `{php}` tags, direct runtime access) and run templates with minimal privileges.
+- Use sandboxed template environments when available (Jinja2 sandboxing, restrict Pug/Jade evaluation).
+- Enforce least-privilege for the process rendering templates (no elevated permissions, minimal file access).
+- Apply input validation, output encoding, and enforce idempotent/immutable handling of user-controlled templates.
+- Audit templates and remove any code paths that insert raw user input into template expressions.
+
+## 7) Lessons learned
+- **SSTI ≠ XSS:** SSTI occurs on the server during template rendering (before the response reaches the browser).
+- Template engines can expose runtime objects (`process` in Node, `__builtins__` in Python) — these are powerful attack surfaces.
+- Fingerprinting the engine with small test payloads is critical before attempting exploits.
+- Many command-execution payloads fail due to argument handling — use argument arrays (e.g., `['ls', '-lah']`) or correct API usage for `spawnSync` / `check_output`.
+- Prefer understanding engine internals and context over copy-pasting payloads.
+- Common real-world SSTI locations: error pages, logging templates, email rendering, and any server-side template that uses user content without escaping.
+
+---
+
+## 8) Links / Resources
+- TryHackMe — *Web Application Pentesting* (Classroom)  
+- SSTImap (automation tool) — https://github.com/vladko312/SSTImap  
+- Useful reading: docs for Jinja2, Pug/Jade, and Smarty (official docs and security pages).  
+- Notion / detailed write-up (public): *(add your public write-up link here if available)*
+
+---
+
+## Appendix — Quick fingerprint cheatsheet (sanitized)
+- `{{ 7*7 }}` → Jinja2-like behaviour (Python templating)  
+- `{{ 7 * '7' }}` — compare output to distinguish Twig vs Jinja2  
+- `#{7*7}` → Pug/Jade (Node.js)  
+- `{'Hello'|upper}` → Smarty (PHP)  
