@@ -1,0 +1,105 @@
+# ORM Injection — TryHackMe - Web Application Pentesting  
+**Date:** 2025-10-28  
+**Type:** TryHackMe (Classroom)  
+**Scope:** Lab / Authorized only
+
+---
+
+## 1) Context
+**Short summary (1–3 lines):**  
+This lab covers how Object-Relational Mapping (ORM) can still be abused to perform injection, even in applications that “don’t write SQL by hand.” The goal was to understand where ORM protections fail, how unsafe query building leads to data exposure, and how attackers can exploit things like `whereRaw()` or user-controlled sort parameters.
+
+## 2) Initial hypothesis
+Before starting, I assumed ORMs are basically “SQLi-proof” because they generate queries automatically.  
+I wanted to test:
+- Can you still inject into database logic if the app uses an ORM?
+- Is the problem in the ORM framework itself, or in how developers use it?
+- Is ORM injection just classic SQL injection with new branding, or its own category?
+
+## 3) Tools used
+Short list: browser, Burp Suite (intercept / repeater), basic fuzzing via crafted parameters (`email=...`, `sort=...`), simple Python (requests + logic) to replay payloads and observe behavior.  
+— **do not** include options, credentials, or sensitive scripts.
+
+## 4) Approach (high level)
+- First, reviewed how ORMs work: models, mappings, query builders.
+- Located user input that influenced database lookups (login/search forms, filtering, sorting).
+- Sent controlled payloads (`' OR '1'='1`, tampered `sort=` params, etc.) to see whether the server would leak data or change behavior.
+- Mapped unsafe ORM uses (like `whereRaw()`) back into the final SQL to confirm that this is still just injection, only one layer higher.
+- Looked at how “blind-style” enumeration could happen via Boolean behavior, even if the API didn’t dump raw SQL errors.
+
+## 5) Results / Evidence (sanitized)
+What I observed:
+- A Laravel controller used `whereRaw()` with unsanitised user input:
+  ```php
+  Admins::whereRaw("email = '$email'")->get();
+  ```
+- Attacker can inject something like 1' OR '1'='1, which turns the generated query into a tautology and returns all rows.
+A separate function trusted a `sort` parameter in a query string.  
+That value was concatenated directly into an `ORDER BY` clause.
+
+- With a crafted payload (URL-encoded), it was possible to:
+  - escape the intended `ORDER BY`,
+  - inject custom SQL fragments (like a new `LIMIT`),
+  - and influence which rows were returned.
+
+**Observed impact:**
+- The app’s response changed in predictable ways depending on injected values:
+  - “User found” style output even when invalid emails should have failed.
+  - More rows / unexpected data after tampering with `sort=`.
+- Sanitized proof: final state → user-controlled input altered query logic, causing multiple admin-like records to be returned instead of a single exact match.
+
+---
+
+## 6) Recommended remediation
+
+**Generic technical measures:**
+
+- **Never concatenate user input** into raw ORM helpers  
+  (`whereRaw()`, `DB::raw()`, `.extra()`, `sequelize.query()`, etc.).
+
+- **Use parameterised ORM methods** like  
+  ```php
+  where('email', $email)
+  ```
+- instead of building string filters manually.
+  - **Allowlist dynamic fields** (especially sort keys like `?sort=name`).  
+  Only permit known-safe column names and reject everything else.
+
+- **Enforce least privilege** at the database level.  
+  Even if an injection works, the ORM’s DB user should not have broad read/write access to sensitive tables.
+
+- **Keep ORM and related packages updated.**  
+  Outdated plugins can introduce injection flaws in sorting, filtering, or pagination.
+
+- **Validate and sanitize input** server-side (and optionally client-side).  
+  Reject unexpected characters before they ever hit the ORM.
+
+---
+
+## 7) Lessons learned
+
+- ORMs map objects to SQL, but they do **not** magically prevent injection.  
+  They’re only safe if you stay inside their parameterised and validated APIs.
+
+- **The most dangerous places are:**
+  - `whereRaw()` / `DB::raw()` / `.extra()` / direct string interpolation  
+  - User-supplied filter conditions  
+  - User-supplied sort / order / limit parameters  
+
+- You can still build tautologies like `OR '1'='1'` if the developer injects user input into a raw clause.
+
+- Query-shaping parameters (like `?sort=name`) are **not harmless**.  
+  If trusted blindly, attackers can hijack `ORDER BY` / `LIMIT` and force data disclosure.
+
+- Reading chained ORM calls as “business logic” is misleading.  
+  You have to mentally translate them into SQL to see the real risk.
+
+---
+
+## 8) Links / Resources
+
+- TryHackMe — *Web Application Pentesting* (Classroom)  
+- Laravel / Eloquent ORM docs (safe query building, parameter binding)  
+- SQL injection / ORM injection prevention guidelines for common frameworks  
+  *(Laravel, Rails Active Record, Django ORM, Hibernate, Sequelize)*  
+- Notion / detailed write-up (public): *(add link here if applicable)*  
