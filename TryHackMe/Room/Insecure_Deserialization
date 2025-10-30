@@ -1,0 +1,87 @@
+# Insecure Deserialization — TryHackMe - Web Application Pentesting  
+**Date:** 2025-10-30  
+**Type:** TryHackMe (Classroom)  
+**Scope:** Lab / Authorized only
+
+---
+
+## 1) Context
+Exploration of (de)serialization across PHP, Python, Java, .NET, Ruby, and how **insecure deserialization** enables auth bypass, logic abuse, or RCE. Focus on PHP cookies (serialized objects), Python pickle, and gadget chains.
+
+## 2) Initial hypothesis
+I knew serialization ↔ deserialization convert objects to/from bytes/strings, but I didn’t expect that **deserializing untrusted data** could execute logic (via magic methods) or enable object injection/RCE.
+
+## 3) Tools used
+Browser, Burp Suite (proxy/repeater), base64 decoder, PHPGGC (PHP gadget chains), ysoserial (Java), simple Python scripts for encoding/decoding.  
+— **do not** include options, credentials, or sensitive scripts.
+
+## 4) Approach (high level)
+- Hunt for **client-controlled state** (cookies, headers, POST bodies) that look Base64-ish.
+- Decode → check for **serialized formats** (PHP `O:<len>:"Class":{...}`, `s:<len>:"..."`, `b:0/1`, `i:<num>`; pickle blobs).
+- Start with **safe flips** (toggle booleans) to confirm effect; escalate to **object injection** only if needed.
+- Inventory magic methods/gadgets; generate payloads with **PHPGGC / ysoserial** when classes are present and integrity checks allow it.
+
+## 5) Results / Evidence (sanitized)
+
+### Update Properties (PHP)
+Observed cookie (after Base64 decode):
+```php
+    O:5:"Notes":3:{s:4:"user";s:5:"guest";s:4:"role";s:5:"guest";s:12:"isSubscribed";b:0;}
+```
+Edited payload (toggle boolean):
+```php
+    O:5:"Notes":3:{s:4:"user";s:5:"guest";s:4:"role";s:5:"guest";s:12:"isSubscribed";b:1;}
+```
+Re-encoded → replaced cookie → **sharing feature unlocked** without a real subscription.  
+*Sanitized proof:* final state shows authorized action granted after `b:0→b:1`.
+
+### Object Injection (concept)
+- Preconditions: exploitable **magic method** (e.g., `__wakeup`/`__destruct`) in a loaded class + attacker control over serialized blob + no (or bypassed) integrity protection.
+- Action: craft serialized object graph so magic methods act on **attacker-controlled properties** → side effects (file write, include, command).
+
+## 6) Recommended remediation
+- **Avoid native object deserialization** of untrusted input. Prefer JSON + strict schema validation.
+- **Integrity + authenticity:** sign/MAC client blobs; use authenticated encryption for tokens/cookies.
+- **Class allowlists:** restrict which classes may be instantiated by the deserializer.
+- **Harden magic methods:** do not perform sensitive side effects in `__wakeup/__destruct`; validate properties.
+- **Dependency hygiene:** keep frameworks/libs updated; monitor CVEs (e.g., Log4Shell; Laravel, Twig, etc.).
+- **Error handling:** no verbose stack traces on deserialization errors; log server-side.
+
+## 7) Lessons learned
+- Deserialization can **instantiate objects** and run **magic methods** automatically; it’s not just parsing.
+- You **cannot** change server code via payload, but you **can** change **object state** that code uses.
+- **Client-side Base64** tokens often hide serialized state—decode and inspect.
+- **Signatures/encryption** are pivotal; without valid keys, payloads should be rejected.
+- **Gadget chains** reuse existing classes; tools (PHPGGC / ysoserial) make exploitation practical.
+
+## 8) Links / Resources
+- PHPGGC — PHP Gadget Chain Generator: https://github.com/ambionics/phpggc  
+- ysoserial (Java): https://github.com/frohoff/ysoserial  
+- OWASP: Insecure Deserialization Cheat Sheet  
+- Notion / detailed write-up (public): *(add link here if applicable)*
+
+---
+
+## Appendix — Quick ID & Exploit Notes
+
+### Identification (black-box)
+- **Look for Base64** cookies/fields → decode → PHP serialization patterns (`O:`, `s:`, `b:`, `i:`).
+- **Provoke gentle errors** to surface hints: messages mentioning `unserialize`, class names, property counts.
+- **Backup files**: try `file.php~` for leaked source/config.
+- **Behavioral diffs** after tampering (redirects, timing, content changes).
+
+### PHP magic methods (ref)
+- `__sleep` (pre-serialize) / `__wakeup` (post-unserialize), `__serialize`/`__unserialize` (PHP 7.4+).  
+Avoid side effects in these; validate properties.
+
+### Simple “property flip” example
+1) Base64-decode cookie → edit `b:0`→`b:1` or adjust `s:<len>` correctly.  
+2) Base64-encode → replace cookie → refresh → observe permission change.
+
+### Object Injection workflow (PHP)
+- Inventory classes + magic methods → pick gadget(s).  
+- Generate chain with **PHPGGC** (args to run a command / write file).  
+- If app wraps tokens (e.g., Laravel), obtain key (APP_KEY) and **encrypt/sign** payload accordingly.  
+- Deliver via the correct vector (cookie/header/POST) → observe side effects.
+
+---
