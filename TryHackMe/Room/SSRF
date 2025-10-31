@@ -1,0 +1,65 @@
+# SSRF — TryHackMe - Web Application Pentesting  
+**Date:** 2025-10-31  
+**Type:** TryHackMe (Classroom)  
+**Scope:** Lab / Authorized only
+
+---
+
+## 1) Context
+Discover the inner workings of **Server-Side Request Forgery (SSRF)** and explore multiple exploitation techniques. SSRF lets an attacker coerce the **server** into making **unauthorized internal/external requests**, enabling internal data access, service disruption, or even RCE.
+
+## 2) Initial hypothesis
+Understand what SSRF is and how to exploit it. I initially thought of simple URL tweaks, but expected deeper mechanics beyond basic path changes.
+
+## 3) Tools used
+Browser, Burp Suite (proxy/repeater), wordlists for parameter discovery, DNS/HTTP listener (for OOB), timing measurements.  
+— **do not** include options, credentials, or sensitive scripts.
+
+## 4) Approach (high level)
+- Map where the app **fetches remote resources** (e.g., `?url=`, `?fetch=`, `?id=http://...`).
+- Test loopback and private ranges (`127.0.0.1`, `169.254.169.254`, `10.0.0.0/8`), including **encoded IPs** and redirects.
+- Use **OOB** listeners (DNS/HTTP) for blind SSRF; use **timing** for semi-blind.
+- Validate DoS potential by targeting large/slow resources with enforced size/time limits.
+
+## 5) Results / Evidence (sanitized)
+- Parameters accepting full URLs allowed the server to **request attacker-chosen hosts** (SSRF candidate).
+- Loopback/private targets produced distinct responses/timing → confirmed **internal reachability**.
+- OOB listener recorded inbound callbacks from the server → confirmed **blind SSRF** capability.
+- DoS angle: pointing at very large resources caused **resource strain**; limits/streaming were decisive.  
+*Sanitized proof:* final state shows the application fetching internal endpoints and triggering OOB callbacks.
+
+## 6) Remedial measures
+- **Strict URL parsing & normalization**: reject malformed/encoded IP tricks; restrict to required schemes (e.g., `https://`).
+- **Allowlists**: only permit vetted hosts/domains; deny everything else.
+- **Egress controls**: firewall/security groups to block access to **private ranges** and **metadata** endpoints.
+- **Enforce timeouts/size limits**: stream responses, cap bytes, and set low connect/read timeouts.
+- **Authz on internal services**: never trust “internal = trusted”; require auth even on internal APIs.
+- **Logging & alerts**: record all outbound requests; alert on anomalies (new hosts, odd ports, spikes).
+
+## 7) Lessons learned
+- **Two hops = SSRF** (client → server → target). **One hop = access-control issue** (URL manipulation/forced browsing).
+- SSRF flavors: **in-band**, **blind/OOB**, **time-based**.  
+- Prime targets: **localhost services**, **private networks**, **cloud metadata** (`169.254.169.254`).
+- Defense is layered: **parsing + allowlists + egress filtering + timeouts/size caps**.
+
+## 8) Links / Resources
+- OWASP SSRF resources & API Security Top 10 (A7)  
+- SSRF testing payload ideas (community cheat sheets)  
+- Notion / detailed write-up (public): *(add link here if applicable)*
+
+---
+
+## Appendix — Quick notes
+
+### Anatomy & goals
+- App takes user input → **server** performs outbound request.  
+- Goals: internal data access, reconnaissance, trigger actions, or **DoS** via large/slow fetches.
+
+### Classic crash scenario (illustrative)
+- `GET /url.php?id=192.168.2.10/bigImage.jpg` → server fetches an overly large resource → **memory/worker exhaustion** if not streamed/limited.
+
+### Distinguishing SSRF vs URL manipulation
+- **URL manipulation / IDOR**: You (client) hit `/admin` directly → broken access control.  
+- **SSRF**: App fetches **your** `?url=http://127.0.0.1:...` → server becomes your proxy to internal targets.
+
+---
