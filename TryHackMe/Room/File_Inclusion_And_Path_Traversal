@@ -1,0 +1,66 @@
+# File Inclusion and Path Traversal — TryHackMe - Web Application Pentesting  
+**Date:** 2025-11-01  
+**Type:** TryHackMe (Classroom)  
+**Scope:** Lab / Authorized only
+
+---
+
+## 1) Context
+**Short summary (1–3 lines):**  
+Hands-on exploration of File Inclusion (LFI/RFI) and Path Traversal on PHP-style apps. Objective: identify inclusion/traversal vectors, understand PHP wrappers (`php://filter`, `data://`), and chain LFI → RCE via logs, sessions or wrappers.
+
+## 2) Initial hypothesis
+I expected a classic `?page=`-style include or traversal that can read configs (`/etc/passwd`, `.env`) and possibly escalate to RCE by poisoning logs/sessions or abusing PHP wrappers.
+
+## 3) Tools used
+Browser, Burp Suite (proxy/repeater), Base64 tools, local webserver to host payloads, simple curl requests, and file inspection utilities.  
+— **do not** include options, credentials, or sensitive scripts.
+
+## 4) Approach (high level)
+- Enumerate entry points that accept file/path input (`?page=`, `?file=`, upload handlers).
+- Test basic traversal (`../`) and encoded variants (`%2e%2e%2f`, double-encoded `%252e%252e%252f`).
+- Probe for PHP wrappers (`php://`, `data://`) and try `php://filter/convert.base64-encode/resource=<file>` to exfiltrate source safely.
+- Attempt LFI→RCE escalation by:
+  - injecting PHP into logs (User-Agent/referrer),
+  - writing payloads into session files,
+  - or using `data://` + `php://filter` combination to execute base64-encoded PHP.
+- Verify base-directory protections by comparing naive string checks vs `realpath()`-style resolutions.
+
+## 5) Results / Evidence (sanitized)
+- **Discovery:** `?page=`-style include accepted arbitrary values and wrappers in tests.
+- **Traversal:** Simple `../` worked in non-protected endpoints; encoded/double-encoded patterns bypassed naive filters.
+- **Wrappers:** `php://filter/convert.base64-encode/resource=...` successfully returned base64-encoded source of target files in cases where raw text inclusion failed.
+- **LFI→RCE vectors confirmed (where perms allowed):**
+  - **Log poisoning:** PHP payload in User-Agent got written to access log; including that log via vulnerable `?page=` executed code.
+  - **Session injection:** Modifying session data (where session files were writable/readable by web process) and including `sess_<id>` executed injected code.
+  - **data:// + php://filter:** Embedding base64 PHP payload and decoding on-the-fly worked when included.
+- *Sanitized proof:* final state showed arbitrary PHP execution (e.g., `whoami` output) when a poisoned log/session file or data stream was included.
+
+## 6) Recommended remediation
+- **Use allowlists** (map tokens → fixed files) instead of taking raw file paths from users.
+- **Canonicalize and verify** paths with `realpath()` (or equivalent) and ensure the resolved path starts with the allowed base directory.
+- **Reject wrapper/URL sequences** in user input; disallow `://` in include parameters unless explicitly allowed and validated.
+- **Disable remote wrappers and fopen/include URLs** in PHP: `allow_url_include = Off`, `allow_url_fopen = Off`.
+- **Harden PHP config & permissions:** use `open_basedir`, `disable_functions`, run PHP with least privilege, and keep sensitive files outside web root.
+- **Protect logs and sessions:** store sessions in non-file backends (DB/Redis) or lock down session directory permissions; avoid logging raw user input that could be executed.
+- **Enforce size/time limits & streaming** for fetched resources to prevent DoS when including remote content.
+- **Monitor & alert** on suspicious include attempts (requests containing `php://`, `data:`, repeated `../`, or encoded traversal).
+- **Prefer safe patterns:** when dynamic content is required, map short keys to internal files (e.g., `pages['home'] => home.php`) rather than including arbitrary paths.
+
+## 7) Lessons learned
+- Inclusion ≠ traversal: traversal is navigation (`../`), inclusion is the act of loading/executing a file — same input can cause different impact.
+- String-based filters (look for `../` or blocklists) are fragile; check the filesystem truth via `realpath()`.
+- Encodings (URL-encoding, double-encoding) and obfuscation (`....//`) easily bypass naïve checks.
+- PHP wrappers are powerful:
+  - `php://filter` for safe **reading** (base64 dumps of source).
+  - `data://` combined with `php://filter` can enable **execution** if included.
+- LFI→RCE common escalation routes: **log poisoning**, **session file injection**, **data:// + base64**.
+- Never mix encoded payload and execution args in a single base64 stream (corrupts payload); send commands separately once a shell is established.
+
+## 8) Links / Resources
+- OWASP: Path Traversal & File Inclusion guidance  
+- PHP manual: `php://filter`, `data://`, `realpath()`  
+- Practical write-ups on LFI → RCE (log poisoning, session injection, php://filter examples)  
+- Notion / detailed write-up (public): *(add link here if applicable)*
+
+---
