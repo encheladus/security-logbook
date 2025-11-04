@@ -1,4 +1,4 @@
-# Cross-Site Scripting (XSS) — TryHackMe / Web Application Pentesting  
+# Cross-Site Scripting (XSS) — TryHackMe - Web Application Pentesting  
 **Date:** 2025-11-03  
 **Type:** TryHackMe / Classroom  
 **Scope:** Lab / Authorized only

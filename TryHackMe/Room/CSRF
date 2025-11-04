@@ -1,0 +1,57 @@
+# CSRF — TryHackMe - Web Application Pentesting
+**Date:** 2025-11-04  
+**Type:** TryHackMe / Classroom  
+**Scope:** Lab / Authorized only
+
+---
+
+## 1) Context
+Hands-on exploration of **CSRF**: how browsers automatically send credentials (cookies/session) and how forged cross-site requests can trigger **state-changing** actions. Objective: recognize CSRF patterns, practice safe PoCs, and understand layered defenses.
+
+## 2) Initial hypothesis
+I expected to discover CSRF from scratch and learn how it works in practice: if a site relies solely on cookies and doesn’t verify request **origin/intent** (token/origin checks), an attacker can trick a logged-in browser into performing unintended actions.
+
+## 3) Tools used
+- Burp Suite (Proxy, Repeater)  
+- Browser DevTools (Console, Network)  
+- Minimal HTML test pages (hidden form/img)  
+- curl / HTTP client for sanity checks  
+
+*(No options, credentials, or sensitive scripts included.)*
+
+## 4) Approach (high level)
+- **Map actions & endpoints**: identify state-changing routes (password/email change, transfers, settings).  
+- **Classify triggers**: traditional (hidden form/img/link), async (fetch/XHR), legacy (Flash—historical).  
+- **Probe protections**: look for anti-CSRF tokens, **SameSite** on cookies, **Origin/Referer** validation, and CORS posture.  
+- **Non-destructive PoCs**: craft minimal hidden elements/auto-submit flows to confirm whether side-effects occur.  
+- **Document context**: note which browser behaviors (top-level GET, POST, async) carry cookies and which protections block them.
+
+## 5) Results / Evidence (sanitized)
+- Verified that **forged requests** can be accepted when **no CSRF token** is required and cookies are sent cross-site.  
+- Observed that **SameSite=Lax/Strict** reduces many cross-site triggers (especially POST), while top-level **GET** navigations may still carry cookies under Lax.  
+- Demonstrated **async CSRF** feasibility against JSON endpoints that rely on cookies and don’t enforce tokens/origin checks.  
+- **Non-sensitive proof**: “Final state changed after cross-origin trigger (e.g., setting updated), server did not require token; action blocked once token/origin checks enabled.”
+
+## 6) Recommended remediation
+- **Anti-CSRF tokens** (synchronizer or double-submit) on *every* state-changing request; verify server-side.  
+- **Cookie hardening**: `SameSite=Strict|Lax; Secure; HttpOnly; Path=/` and avoid wide `Domain`.  
+- **Origin/Referer validation** for sensitive routes; treat as defense-in-depth (reject missing/mismatched origins).  
+- **No state changes on GET**; prefer POST/PUT/DELETE with tokens.  
+- **Tight CORS**: no wildcard with credentials; allow only trusted origins.  
+- **Mitigate XSS** (CSP + context-aware output encoding) because XSS can **bypass** CSRF defenses by stealing/setting tokens.  
+- Optional **rate-limits/CAPTCHAs** for high-risk flows.
+
+## 7) Lessons learned
+- CSRF steals **actions**, not credentials—**side effects** are the oracle.  
+- **SameSite** helps but isn’t a silver bullet; tokens + origin checks are required.  
+- JSON/SPAs are not immune: if cookies authenticate, **CSRF still applies**.  
+- **Referer** alone is brittle; prefer **Origin** when available and layer defenses.
+
+---
+
+## 8) Links / Resources
+- Room / machine link: *TryHackMe — Web Application Pentesting (CSRF module)*  
+- Useful docs: OWASP CSRF Prevention Cheat Sheet; MDN — Set-Cookie `SameSite`  
+- Notion / detailed write-up (public): *add link when published*
+
+---
