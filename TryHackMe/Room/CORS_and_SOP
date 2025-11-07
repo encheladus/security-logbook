@@ -1,0 +1,67 @@
+# CORS & SOP — TryHackMe - Web Application Pentesting  
+**Date:** 2025-11-07  
+**Type:** TryHackMe / Classroom  
+**Scope:** Lab / Authorized only
+
+---
+
+## 1) Context
+Short summary (1–3 lines): Hands-on study of Same-Origin Policy (SOP) and Cross-Origin Resource Sharing (CORS). Learn how browsers enforce SOP, how CORS headers relax it, common misconfigurations, how to test/exploit them in a controlled environment, and practical mitigations.
+
+## 2) Initial hypothesis
+What you expected before starting:  
+Understand how SOP isolates origins (protocol, hostname, port) and how CORS acts as a header-driven escape hatch; learn to identify misconfigurations (wildcards, echoing Origin, `null`, bad regex) and assess their real-world pentest impact (data exfiltration, token leakage, chaining with XSS/SSRF).
+
+## 3) Tools used
+Short list:  
+- curl (header probing)  
+- Browser DevTools (Network, Console)  
+- Burp Suite (request manipulation / investigation)  
+- Simple attacker webhost (PoC pages)  
+- Automated scanners (DAST) for CORS flags
+
+*(Do not include credentials or sensitive scripts.)*
+
+## 4) Approach (high level)
+- Review SOP fundamentals (protocol, host, port) and common misconceptions.  
+- Enumerate candidate API endpoints likely to return sensitive data (`/api/me`, `/user`, `/tokens`, `/settings`).  
+- Probe endpoints with curl/Burp while varying `Origin:` and observe `Access-Control-*` response headers.  
+- Distinguish simple vs preflight requests and test for `Access-Control-Allow-Credentials` + ACAO behavior.  
+- Validate exploitability in a browser by hosting a minimal attacker PoC page (fetch with `credentials: 'include'`) to see if responses are readable.  
+- Document misconfigurations (echoed Origin, wildcard with credentials, `null`, bad regex) and assess impact within scope.
+
+## 5) Results / Evidence (sanitized)
+What I observed:  
+- SOP enforces origin matching by protocol, hostname, and port — small differences break same-origin.  
+- CORS is controlled by response headers; the server always receives requests but the browser decides whether to expose the response to JS.  
+- Misconfigurations that enable exploitation:
+  - **Echoing Origin**: server echoes incoming `Origin` into `Access-Control-Allow-Origin` (dangerous — allows arbitrary attacker origins).  
+  - **Wildcard + Credentials**: `Access-Control-Allow-Origin: *` combined (incorrectly) with credentials would be rejected by browsers but appears as a misconfiguration pattern in code.  
+  - **Null origin allowed**: `Access-Control-Allow-Origin: null` trusted by server — risky for local files / sandboxed frames.  
+  - **Bad regex**: unanchored/loose regex match can allow attacker-controlled subdomains to bypass checks.  
+- Proof-of-concept pattern: hosting a PoC on attacker origin that runs `fetch('https://target/api/me', { credentials: 'include' })` — if ACAO echoes origin and `Access-Control-Allow-Credentials: true` is present, the browser returns the response body to the attacker JS (PoC exfil observed in controlled lab).
+
+## 6) Recommended remediation
+Generic technical measures:
+- Use an **explicit allowlist** of trusted origins and perform **exact string matching** (no echoing of unverified `Origin`).  
+- **Never** set `Access-Control-Allow-Origin: *` when `Access-Control-Allow-Credentials: true` is required.  
+- Avoid trusting `"null"` origin in production.  
+- Avoid fragile regex checks; if regex is required, anchor and escape carefully and test edge cases. Prefer exact allowlist lookup.  
+- Set `Vary: Origin` when dynamically echoing a vetted origin.  
+- Minimize sensitive data returned by endpoints; avoid returning tokens or secrets in responses.  
+- Harden session cookies: `SameSite=Strict|Lax; Secure; HttpOnly`. Combine with CSRF tokens for state changes.  
+- Review and fix any stored XSS / injection vectors — XSS can massively increase the impact of CORS misconfigurations.
+
+## 7) Lessons learned
+- **Browsers enforce SOP, servers process requests** — CORS headers only control whether the browser exposes responses to JS.  
+- A server that “trusts” arbitrary or malformed origins effectively defeats SOP and enables data exfiltration from authenticated victims.  
+- The practical exploitability depends on what the API returns and whether credentials are automatically included by the browser (cookie-auth scenarios are highest risk).  
+- CORS misconfigurations are often easy to test and frequently show up during routine API reconnaissance; their impact is amplified when chained with other vulnerabilities (XSS, SSRF, social engineering).  
+- Defensive best practices are straightforward: strict allowlist, no wildcard with credentials, reject `null` unless justified, and minimize sensitive response content.
+
+---
+
+## 8) Links / Resources
+- OWASP CORS Security Cheat Sheet  
+- MDN: Cross-Origin Resource Sharing (CORS)  
+- Example PoC pattern (minimal attacker page for testing `fetch` + `credentials`)
