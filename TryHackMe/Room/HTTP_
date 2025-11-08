@@ -1,0 +1,60 @@
+# HTTP Request Smuggling — TryHackMe - Web Application Pentesting
+**Date:** 2025-11-08  
+**Type:** TryHackMe / Classroom  
+**Scope:** Lab / Authorized only
+
+---
+
+## 1) Context
+Short summary (1–3 lines): Studied **HTTP Request Smuggling (HRS)** and how parser disagreements across proxies/load balancers/backends enable **HTTP desync** (CL.TE / TE.CL / TE.TE). Goal: understand impact (WAF bypass, cache poisoning, privileged route access) and the mitigations that normalize/deny ambiguous requests.
+
+## 2) Initial hypothesis
+1) Grasp HRS mechanics and risk. 2) Identify HRS-prone configurations. 3) Validate desynchronization in a safe lab. 4) Compile practical mitigations for modern stacks (reverse proxies, CDNs, app servers).
+
+## 3) Tools used
+- curl (header/protocol probing)
+- Burp Suite Repeater/Proxy (raw request control)
+- Browser DevTools (timing/connection behavior)
+- Log correlation (edge vs origin), cache inspection (if applicable)
+
+*(No options, credentials, or sensitive scripts.)*
+
+## 4) Approach (high level)
+- **Model the path:** client → CDN/WAF → LB/Proxy → app server; include H2→H1 downgrades.
+- **Probe framing:** vary `Content-Length` and `Transfer-Encoding` (and duplicates) to fingerprint which hop trusts which header.
+- **Watch effects:** status codes, timeouts, header normalization, cache behavior; compare edge vs origin logs.
+- **Confirm desync safely:** benign canaries and health endpoints; no destructive payloads.
+- **Classify vector:** **CL.TE**, **TE.CL**, or **TE.TE** based on observed precedence/leniency.
+
+## 5) Results / Evidence (sanitized)
+- **Concept validated:** keep-alive + pipelining + parser mismatch ⇒ potential request boundary confusion.
+- **Vectors understood:**
+  - **CL.TE:** conflicting `Content-Length` vs `Transfer-Encoding` (edge honors CL, origin honors TE or vice-versa).
+  - **TE.CL:** edge treats as chunked; origin obeys CL → leftover bytes interpreted as a new request.
+  - **TE.TE:** duplicate/malformed `Transfer-Encoding` tokens trigger divergent parsing without CL.
+- **Observed impacts (lab):** desync indicators (odd 400/502 patterns, timing anomalies, cache anomalies) without disclosing sensitive data.
+
+## 6) Recommended remediation
+- **Normalize at ingress:** strip duplicates, **allow only one** framing: either valid `Content-Length` **or** `Transfer-Encoding: chunked` (never both).
+- **Reject ambiguity:** 400 on mixed/duplicate `TE` headers, malformed chunk sizes, conflicting CL/TE.
+- **Align parsers:** ensure **proxy and origin** use consistent HTTP stacks/versions; disable H1 quirks when possible; standardize hop-by-hop header handling.
+- **Terminate & re-emit:** have the edge fully parse and recompose requests (remove chunked, set correct CL) before forwarding.
+- **Cache hardening:** vary on authorization, avoid caching responses to unsafe methods, segregate cache keys to prevent poisoning.
+- **Operational controls:** WAF rules for CL/TE conflicts; correlation of edge/origin logs; alert on desync heuristics (timeouts, mid-connection 4xx/5xx bursts).
+- **Keep current:** apply vendor patches; prefer strict RFC-compliant parsers; test H2/H2C/H1 downgrade paths.
+
+## 7) Lessons learned
+- **Smuggling = parser disagreement** on request boundaries; keep-alive makes it exploitable.
+- **CL.TE / TE.CL / TE.TE** differ only in **which header(s) each hop trusts**—the goal is always **desync**.
+- **Real risks:** WAF/ACL bypass, **cache poisoning**, and hitting **internal/privileged routes** from the edge.
+- **Detection lives in gaps:** edge/origin log inconsistencies, odd timeouts, and cache artifacts that “shouldn’t exist”.
+- **Mitigation is normalization**, not signature matching.
+
+---
+
+## 8) Links / Resources
+- RFC 7230 / 9112 (HTTP/1.1 message framing & TE)
+- PortSwigger: HTTP Desync/Request Smuggling research
+- Vendor hardening guides (NGINX, HAProxy, Apache, Envoy) on CL/TE handling
+
+---
