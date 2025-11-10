@@ -1,0 +1,64 @@
+# Request Smuggling: WebSocket  — TryHackMe - Target Host
+**Date:** 2025-11-10  
+**Type:** TryHackMe / Classroom
+
+---
+
+## 1) Context
+Short summary (1–3 lines): Hands-on study of how WebSocket upgrade handling and proxy/backend state mismatches can be abused for HTTP request smuggling. Objective: identify conditions where a proxy believes a tunnel exists while the backend still expects HTTP, safely confirm the mismatch with canaries, and learn mitigations.
+
+## 2) Initial hypothesis
+What you expected before starting:  
+Understand WebSocket handshake/upgrade flow, observe how proxies tunnel upgraded connections, and find cases where a proxy prematurely or incorrectly treats a connection as tunneled while the backend did not accept the upgrade — enabling the attacker to send HTTP bytes that the backend will parse but the proxy did not inspect.
+
+## 3) Tools used
+Short list:  
+- Raw TCP/socket tools (netcat / custom raw-client)  
+- curl (headers + upgrade probes)  
+- websocket clients (wscat / websocat) for normal upgrades  
+- Burp Suite (raw requests, Repeater)  
+- Access to proxy/back-end logs for correlation  
+*(No credentials or destructive payloads included.)*
+
+## 4) Approach (high level)
+- Map the HTTP → proxy → backend path and note upgrade handling (does proxy forward Upgrade or terminate it?).  
+- Attempt benign WebSocket upgrade handshakes against endpoints that are and are not WebSocket-capable; observe proxy and backend replies.  
+- If proxy returns `101` or otherwise appears to tunnel while backend does not, try sending a harmless "canary" HTTP request on the same TCP stream to see if backend processes it (echo/health endpoints).  
+- Correlate front-end and backend logs (timestamps, connection ids) to confirm the proxy/backend log mismatch.  
+- Avoid destructive actions; use non-sensitive endpoints and short-lived canaries.
+
+## 5) Results / Evidence (sanitized)
+What I observed:  
+- Normal handshake: browser/client → proxy (forwards) → backend responds `101 Switching Protocols` → both sides switch to WebSocket framing.  
+- Vulnerable scenario (lab): proxy accepted/forwarded the upgrade and treated the connection as a tunnel (or returned a `101`), but the backend either did not return `101` or behaved as if still expecting HTTP. In that mismatch window I could send a second raw HTTP request (canary) on the same TCP socket and the backend processed it while the proxy did not log/inspect it.  
+- Confirmation method: `GET /echo?canary=WS-TEST` sent after the handshake was reflected by the backend endpoint and appeared in backend logs without a corresponding proxied request in front-end logs — clear sign of a state desync.  
+- Practical constraints: reproducible only when proxy forwarded/handled upgrade improperly; modern, mature proxies often reject or correctly validate backend response and do not exhibit this bug.
+
+Sanitized proof examples (non-sensitive):  
+- “Backend `/echo` returned `canary=WS-TEST` even though the proxy’s access log shows no corresponding proxied request in the same time window.”  
+- “curl upgrade probe returned a `101` at the proxy while backend returned `200` — indicates proxy believed the upgrade succeeded while backend did not.”
+
+## 6) Recommended remediation
+Generic technical measures:  
+- **Strict upgrade verification:** proxy must only switch to tunnel mode after confirming the backend actually sent the canonical `101 Switching Protocols`. Do not change connection handling based on partial/assumed responses.  
+- **Canonicalize and validate headers:** strip or sanitize suspicious `Upgrade`/`Connection` combos when the backend is not expected to support WebSocket. Reject mismatch requests.  
+- **Avoid forwarding `Upgrade` blindly:** if the edge must forward upgrades, keep enforcing the same HTTP controls or terminate the upgrade at the edge and proxy a controlled WebSocket session.  
+- **Log/correlate consistently:** ensure access logs record the handshake and all subsequent bytes; alert on backend requests not matched in front-end logs.  
+- **Harden internal clients:** restrict backend services that perform outbound requests (SSRF controls), since SSRF could be used to manipulate backend behavior during handshake.  
+- **Testing & validation:** include upgrade-handling tests in CI/security checks and fuzz CRLF/handshake edge cases on proxy upgrades.
+
+## 7) Lessons learned
+- WebSocket request-smuggling is about **state mismatch**, not sending raw HTTP after a legitimate WebSocket session. The attack relies on the proxy’s *belief* that the connection switched protocols while the backend still expects HTTP.  
+- Reproducing the vulnerability is fragile: exact CRLFs, empty lines, and handshake bytes must be precise; tiny mistakes (missing blank line) cause failures.  
+- Impact is generally limited to the attacker’s connection (tunnelling), but can be amplified (cache poisoning, header leaks) if backend responses are cached or reflected.  
+- Detection relies on correlating proxy and backend logs (requests seen by backend but not by proxy is the tell).  
+- Hardening is straightforward conceptually: canonicalize/validate upgrade flow, do not forward upgrades blindly, and keep consistent protocol handling across hops.
+
+---
+
+## 8) Links / Resources
+- RFC6455 (WebSocket handshake) — for canonical handshake patterns.  
+- Vendor docs: proxy-specific upgrade handling guidance (NGINX/HAProxy/Envoy).  
+- Internal lab notes: safe canary endpoints (`/echo`, `/healthz`) for detection.
+
+---
