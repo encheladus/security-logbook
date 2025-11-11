@@ -1,0 +1,75 @@
+# What's my name? — TryHackMe - Web Application Pentesting
+
+**Date:** 2025-11-11
+**Type:** Challenge
+**Scope:** Lab / Authorized only
+
+---
+
+## 1) Context
+
+Short summary (1–3 lines): Utilise client-side exploitation techniques (stored XSS → session exfiltration → CSRF) to gain privileged access in a web application and retrieve flags.
+
+## 2) Initial hypothesis
+
+What you expected before starting: Given the challenge context and learning path so far, I expected the vulnerability would be exploitable via a client-side issue (CSRF or XSS) in user-controllable fields (registration, profile, chat). I hypothesised mirrored frontends could have differing sanitisation leading to stored XSS.
+
+## 3) Tools used
+
+Short list: Nmap, dirsearch, Burp Suite, browser DevTools, a small local HTTP listener (for exfil), curl.
+
+> **Do not** include options, credentials, or sensitive scripts.
+
+## 4) Approach (high level)
+
+1. Recon: full port scan and directory enumeration to map endpoints and identify possible input vectors.
+2. Inspect source and rendered DOM on both frontends (ports) to spot differences in comments, templates, and sanitisation.
+3. Focus on low-noise client-side payloads (attribute-based XSS, `new Image()` fetchers) across registration/profile/chat fields.
+4. Use a local HTTP listener to receive exfiltrated cookies and confirm execution context.
+5. If a privileged session is captured, swap session cookie locally to impersonate and explore moderator/admin UI.
+6. Use Burp to view privileged endpoints and craft CSRF payloads (encodings / runtime-decoding to bypass naive filters).
+
+Avoided: exact commands, sensitive artifacts, full logs.
+
+## 5) Results / Evidence (sanitized)
+
+What I observed (non-sensitive proof):
+
+* Recon found multiple HTTP frontends and typical web paths (`/login.php`, `/register`, `/chat.php`, `/phpmyadmin/`, `/logs.txt`) suggesting interactive features and admin surfaces.
+* Directory differences between ports suggested inconsistent sanitisation.
+* A stored XSS payload triggered in a registration/profile field and resulted in a GET request to my listener containing a cookie-like string — confirming script execution and session token exposure.
+* After replacing my local session cookie with the captured token (sanitised in this report), I could access a moderator dashboard and retrieve a flag (final state: moderator access obtained).
+* From the moderator context, a POST to the `change_password` endpoint was possible; using a runtime-decoded URL (Base64 → `atob()`), I sent a CSRF-style POST that changed the admin password (final state: admin access obtained and second flag retrieved).
+
+> Notes: all sensitive identifiers (IP addresses, raw PHPSESSID values, or other secrets) have been removed from this public write-up.
+
+## 6) Recommended remediation
+
+Generic technical measures:
+
+* Enforce strict output encoding by context (HTML, attribute, JS, URL) — do not rely on naive string replacements.
+* Implement a robust input sanitisation and canonicalisation pipeline, but prioritise **output encoding** over input filtering.
+* Use HTTP-only, Secure cookies for session tokens and consider SameSite=strict to mitigate some CSRF risks.
+* Implement CSRF protection tokens for all state-changing endpoints and verify origin/Referer headers server-side.
+* Apply Content Security Policy (CSP) to limit script execution and reduce impact of injected scripts.
+* Log and alert on unusual admin actions and use multi-factor authentication for privileged accounts.
+* Ensure admin/bot accounts follow the principle of least privilege and avoid auto-rendering user-supplied HTML in privileged contexts.
+
+## 7) Lessons learned
+
+* Client-side vulns are context-sensitive: the same payload can behave differently across fields and ports because of templating and sanitisation differences.
+* Small, attribute-based payloads (e.g., `onerror`, `onload`, `new Image()`) are often more resilient than full `<script>` tags.
+* Encoding tricks (Base64 + runtime decoding) can bypass brittle sanitisation that looks for literal strings.
+* Always verify the DOM the browser actually executes (DevTools → Elements) and check Console for syntax errors — these reveal accidental transformations.
+* Tag payloads with canaries (cookie1/cookie2) to map which field caused exfiltration.
+* Practice crafting compact payloads and maintain a catalogue of encoding/evading techniques.
+
+---
+
+## 8) Links / Resources
+
+* Room / machine: TryHackMe — *Web Application Pentesting* (Challenge)
+* Useful docs: OWASP XSS Prevention Cheat Sheet; OWASP CSRF Prevention Cheat Sheet.
+* Notion / detailed write-up (public): *[link if available]*
+
+---
