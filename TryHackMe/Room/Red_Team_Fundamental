@@ -1,0 +1,62 @@
+# Red Team Fundamentals — TryHackMe - Red Team
+**Date:** 2025-11-13  
+**Type:** TryHackMe / Classroom  
+**Scope:** Authorized only
+
+---
+
+## 1) Context
+Short summary (1–3 lines): which lab / which concept is covered and the learning objective.  
+Foundation module on **red team engagements**: what they are, how they differ from VA/PT, who the stakeholders are (red/blue/white), and how objectives, ROE, and adversary emulation guide realistic, stealthy operations.
+
+## 2) Initial hypothesis
+What you expected before starting (possible bug, vulnerable business logic, attack surface).  
+- Learn core concepts of a red team engagement.  
+- Identify main components and stakeholders (red/blue/white, roles).  
+- Distinguish red teaming vs vulnerability assessments / penetration tests.
+
+## 3) Tools used
+Short list — **do not** include options, credentials, or sensitive scripts.  
+- Threat intel frameworks (e.g., MITRE ATT&CK)  
+- Kill-chain models (Lockheed Martin, Unified Kill Chain)  
+- Note-taking & planning (ROE checklist, objectives matrix)  
+- (Classroom/theory session; no offensive tooling executed)
+
+## 4) Approach (high level)
+Conceptual steps you followed (Avoid precise commands).  
+- Contrast **VA → PT → Red Team** to surface scope, noise level, and goals.  
+- Define **objectives/flags**, **ROE**, and safety/stop conditions with white cell.  
+- Map **TTPs** to a kill chain for adversary emulation (stealth, OPSEC-first).  
+- Walk through example scenario (phishing → privilege escalation → lateral movement → objectives) and align detection/response expectations with blue cell.  
+- Capture **KPIs** (MTTD, % stages detected, alert fidelity) and debrief cross-team.
+
+## 5) Results / Evidence (sanitized)
+What you observed (impact) with non-sensitive proof.  
+- Clear delineation of **red vs PT**: red measures **detection & response** to a focused attack path, not “find all vulns”.  
+- Stakeholder model validated: **red/blue/white** roles and handoffs understood.  
+- Example bank scenario: social engineering detected but incomplete response allowed progress; **PrintNightmare**-style LPE (concept), **Pass-the-Hash** lateral movement, and alert fatigue observed.  
+- Deliverables produced: ROE checklist, objectives/flags template, ATT&CK mapping, detection KPI list (all sanitized; no real data).
+
+## 6) Recommended remediation
+Generic technical measures (transactions, locks, idempotency keys, DB constraints, input validation).  
+- **Governance:** lock objectives/flags, ROE, comms plan, and explicit stop conditions.  
+- **Detection content:** provide concrete analytics (e.g., LSASS access, workstation-to-workstation NTLM, unusual admin token creation) with tuning guidance.  
+- **Hardening:** patch hygiene, enforce MFA on Tier-0, restrict legacy auth, segment Tier-0, protect service accounts.  
+- **EDR/SIEM:** ensure coverage on lateral movement paths; raise fidelity for PTH/RDP/SMB anomalies.  
+- **Process:** schedule **purple-team** iterations to convert gaps into detections, then re-test.
+
+## 7) Lessons learned
+- **Red ≠ “find all vulns”** → it’s a **hypothesis test of detection/response** against a realistic, quiet path to the crown jewels.  
+- **White-cell discipline** (ROE, comms cadence) drives safety and outcome quality.  
+- **Small, quiet chains** teach more than broad noisy scanning; OPSEC is central.  
+- **Defender empathy:** frame outcomes as “how to catch us next time” (sources, queries, detections) to drive adoption.  
+- **Metrics matter:** MTTD/MTTR, % stages detected, and alert fidelity focus improvements.
+
+---
+
+## 8) Links / Resources
+- Room / machine link: *TryHackMe — Red Team (Classroom)*  
+- Useful docs: **MITRE ATT&CK**, **Lockheed Martin Cyber Kill Chain**, **Unified Kill Chain**  
+- Notion / detailed write-up (public): *(add link when published)*
+
+---
