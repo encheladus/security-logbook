@@ -1,0 +1,77 @@
+# Intrduction to C2 — TryHackMe / Red Team  
+**Date:** 2025-11-17  
+**Type:** TryHackMe / Classroom  
+**Scope:** Lab / Authorized only  
+
+---
+
+## 1) Context
+Short summary (1–3 lines):  
+Theory + light hands-on room on **Command and Control (C2) frameworks**: structure (server, listeners, agents, beacons), payload types, listener types, redirectors, and OPSEC considerations when deploying and operating a C2 (Metasploit / Armitage as reference).
+
+## 2) Initial hypothesis
+What I expected before starting:  
+- Understand how a **C2 framework operates** and its core components.  
+- Learn how to set up and administer a basic C2 (Metasploit / Armitage).  
+- See how OPSEC principles apply to C2 infra (management vs beacon traffic, redirectors, sleep/jitter).  
+
+## 3) Tools used
+Short list — **do not** include options, credentials, or sensitive scripts.  
+- Metasploit Framework (multi/handler, payload generation).  
+- Armitage (teamserver + GUI client).  
+- SSH port forwarding (for safe remote access to C2 UI).  
+- Web server / reverse proxy concepts (Apache/NGINX redirectors).  
+
+## 4) Approach (high level)
+Conceptual steps followed (no precise commands):  
+- Break down **C2 structure**: server, listeners, agents/payloads, beacons.  
+- Compare **staged vs stageless** payloads and common formats (EXE, PowerShell, scripts, macros).  
+- Review **listener types** (TCP/UDP, HTTP/HTTPS, DNS, SMB) and when to use which.  
+- Understand **sleep/jitter** and callback shaping as detection-evasion tools.  
+- Study **redirectors** (Apache/NGINX) and how they hide/segment the true C2 (header-based forwarding, decoy responses).  
+- Map C2 OPSEC back to previous OPSEC process: critical info (C2 IPs/domains), threats (blue/SOC), vulnerabilities (shared infra), countermeasures (segmentation, redirectors, hardening).  
+
+## 5) Results / Evidence (sanitized)
+What I observed (impact, sanitized):  
+- Clear mental model of C2 as **“multi-session Netcat + automation + infra”**, not just “a payload generator”.  
+- Understood the trade-offs between **staged** (small, flexible, dependent on callback) and **stageless** (larger, simpler, more detectable) payloads.  
+- Differentiated listener use cases:  
+  - Raw TCP/UDP for simple labs (noisy, obvious).  
+  - HTTP/HTTPS to blend into web traffic and support domain fronting/profiles.  
+  - DNS for restrictive egress, SMB for internal pivoting.  
+- Saw how **redirectors** significantly improve OPSEC by hiding the real C2 and acting as a disposable filter in front of it.  
+- Identified that Metasploit is great for learning but less suited as a long-term, stealthy C2 without extra profiling and infra around it.  
+
+## 6) Recommended remediation
+Generic, non-sensitive measures for real-world use:  
+- Treat C2 as a proper **infrastructure project**: plan IPs, domains, redirectors, and OPSEC from the start.  
+- **Never expose C2 management interfaces** directly to the internet; use local binding + VPN/SSH tunnels for operators.  
+- **Separate infra** by role:  
+  - C2 server  
+  - Redirectors (front-facing, disposable)  
+  - Phishing/lure hosting  
+  - Scanning/recon systems  
+- Enable **sleep + jitter** by default on agents; low-latency callbacks only for short debugging/debug stages.  
+- Implement **redirectors** that forward only “valid” beacons (header/User-Agent match) and serve benign content for everything else.  
+
+## 7) Lessons learned
+- A C2 framework is basically **“Netcat on steroids + management + automation”**: multi-session handling, payload generation, post-ex modules, and pivoting.  
+- Core C2 building blocks: **server**, **listener**, **agent/payload**, **beaconing** — once those are clear, different C2s feel less intimidating.  
+- **Staged vs stageless** payloads:  
+  - Staged → small first stage, loads full agent later (better OPSEC, more moving parts).  
+  - Stageless → all-in-one agent (bigger, easier to detect, simpler to run).  
+- Listener choice should match **environment and egress**: TCP, HTTP(S), DNS, SMB all have different detection and routing properties.  
+- Redirectors (Apache/NGINX, profiles) are key to **hiding the real C2**, filtering traffic, and giving you a layer you can safely burn.  
+- OPSEC for C2 = **hide the brain, segment the limbs, randomise the heartbeat**:  
+  - Brain = C2 management server  
+  - Limbs = agents / redirectors / infra  
+  - Heartbeat = sleep + jitter + traffic shaping  
+
+---
+
+## 8) Links / Resources
+- Room / machine link: *TryHackMe — Red Team (C2 Essentials)*  
+- Useful docs: Metasploit multi/handler & payload docs, Apache/NGINX reverse proxy & mod_rewrite guides, C2 Matrix (framework selection).  
+- Notion / detailed write-up (public): *(add link when published)*  
+
+---
