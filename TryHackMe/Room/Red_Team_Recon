@@ -1,0 +1,80 @@
+# Red Team Recon — TryHackMe / Red Team  
+**Date:** 2025-11-18  
+**Type:** TryHackMe / Classroom  
+**Scope:** Lab / Authorized only  
+
+---
+
+## 1) Context
+Short summary (1–3 lines):  
+Theory room on **reconnaissance for red teaming**: taxonomy (passive vs active, external vs internal), WHOIS/DNS tools, advanced search & Google hacking, social media/job-ad OSINT, specialized engines (Shodan/Censys/etc.), and structured frameworks (Recon-ng, Maltego).
+
+## 2) Initial hypothesis
+What I expected before starting:  
+- Understand the **types of reconnaissance** activities in an engagement.  
+- Learn how to perform **WHOIS/DNS-based recon** and advanced search (GHDB, operators, image/search-by-file).  
+- Get familiar with **specialized search engines** and frameworks like **Recon-ng** and **Maltego**.
+
+## 3) Tools used
+Short list — **do not** include options, credentials, or sensitive scripts.  
+- Built-in: `whois`, `dig`, `nslookup`, `host`, `traceroute` / `tracert`.  
+- Search operators & GHDB-style queries (Google / other engines).  
+- Specialized services: ViewDNS, Threat Intelligence Platform, Shodan, Censys (conceptual use).  
+- Frameworks: Recon-ng, Maltego (conceptual, no sensitive API keys/targets).  
+
+## 4) Approach (high level)
+Conceptual steps followed (no precise commands):  
+- Separate **passive** vs **active** recon, and **external** vs **internal** perspectives.  
+- Use built-in tooling for **WHOIS & DNS footprinting** (ownership, NS/MX, basic topology).  
+- Apply **advanced search operators** and GHDB-inspired queries to uncover public files, logs, misconfigs, and exposed portals.  
+- Collect **people and org-level OSINT** from social media and job postings (tech stack, vendors, email patterns).  
+- Explore **specialized engines** (reverse IP, TI aggregators, service scanners) to see what the Internet exposes about assets.  
+- Look at **Recon-ng** (workspace + modules + DB) and **Maltego** (entity graph + transforms) as ways to structure, correlate, and visualize recon data.
+
+## 5) Results / Evidence (sanitized)
+What I observed (impact, non-sensitive):  
+- Recon is a **structured, layered process**, not just random Googling: passive OSINT builds a picture before any packets ever hit the target.  
+- Built-in tools alone reveal a lot: ownership details, name servers, DNS records, basic routing paths.  
+- Using search operators + GHDB-style queries **quickly surfaces sensitive content** (logs, configs, backups, error pages) without touching the target infrastructure.  
+- People and HR content (social media & job ads) expose **names, roles, tech stack, and habits**, which are invaluable for social engineering and tailored wordlists.  
+- Specialized engines (ViewDNS, Shodan, Censys, etc.) show **how the target looks from the outside**: exposed services, shared IPs, related domains.  
+- Recon-ng and Maltego help **organize and correlate** findings into workspaces and graphs instead of leaving everything scattered in notes/screenshots.
+
+## 6) Recommended remediation
+Generic, non-sensitive recommendations for real-world use:  
+- Design recon to be **quiet, structured, and documented**; clearly separate passive vs active phases and keep logs of what was used where.  
+- Treat **public content** (docs, job ads, social media, old site versions) as part of the attack surface; review and sanitize regularly.  
+- Apply minimal exposure principles: avoid leaving **logs, backups, keys, and admin panels** indexable or guessable by search engines.  
+- For defenders: regularly search your own org using **GHDB-like queries and specialized engines** to identify and fix overexposed assets.  
+- Use frameworks (Recon-ng, Maltego, or similar) to make recon **repeatable and auditable**, not a one-off ad-hoc effort.  
+
+## 7) Lessons learned
+- **Recon is structured, not random stalking.**  
+  - **Passive**: no direct interaction (OSINT, advanced search, GHDB, social media, job ads, WHOIS history, Shodan/Censys, etc.).  
+  - **Active**: direct interaction (Nmap, Nikto, Nessus, internal AD enumeration, etc.).  
+- **Built-in tools already give a ton of value:**  
+  - `whois` → ownership, contacts, registrar, name servers, timelines.  
+  - `dig` / `host` / `nslookup` → DNS records (A/MX/NS/TXT), sometimes subdomains.  
+  - `traceroute` / `tracert` → network path, hops, potential choke points / filtering.  
+- **Advanced search operators = low-noise, high-value recon:**  
+  - `"exact phrase"`, `site:`, `filetype:`, `intitle:`, `inurl:` combined with GHDB → exposed logs, misconfigs, backup files, error messages, keys, admin portals.  
+- **People are part of the attack surface:**  
+  - Social media & job ads reveal names, roles, tech stack hints, vendors, habits, and sometimes password-reset hints.  
+- **Specialized engines show what “the Internet” sees:**  
+  - ViewDNS, Threat Intelligence Platform, Shodan, Censys help map external footprint and exposed services beyond the main website.  
+- **Recon-ng & Maltego bring structure and correlation:**  
+  - Recon-ng = Metasploit-style OSINT with a DB and modules.  
+  - Maltego = visual graphs of entities and relationships; great for seeing the bigger picture.  
+
+---
+
+## 8) Links / Resources
+- Room / machine link: *TryHackMe — Red Team (Reconnaissance)*  
+- Useful docs:  
+  - Google / search engine operators & GHDB.  
+  - Shodan & Censys documentation.  
+  - Recon-ng documentation & module marketplace.  
+  - Maltego Community/CE docs and Transform Hub overview.  
+- Notion / detailed write-up (public): *(add link when published)*  
+
+---
