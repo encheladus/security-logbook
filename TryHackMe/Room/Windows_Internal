@@ -1,0 +1,85 @@
+# Windows Internals — TryHackMe - Red Team  
+**Date:** 2025-11-28  
+**Type:** TryHackMe  
+**Scope:** Authorized Lab
+
+---
+
+## 1) Context
+This lab explores the internal architecture of Windows operating systems: processes, threads, virtual memory, Portable Executable structure, DLLs, and the Windows API.  
+Objective: understand how these components work and how they can be leveraged or abused during red-team operations.
+
+---
+
+## 2) Initial hypothesis
+Before starting, I expected to:
+- Understand and interact with Windows processes and their underlying technologies.
+- Learn the core file formats Windows uses (DLL, EXE, PE).
+- Better understand how Windows kernel and user-mode layers communicate.
+- Connect these internal mechanics to common offensive techniques (injection, hollowing, DLL hijacking).
+
+---
+
+## 3) Tools used
+- Windows Task Manager  
+- Process Hacker 2  
+- Process Explorer  
+- Procmon  
+- C++ (for interacting with Windows API)  
+
+_No sensitive commands or credentials included._
+
+---
+
+## 4) Approach (high level)
+1. Broke down Windows internals into discrete layers: processes → threads → memory → PE → DLLs → API → kernel.  
+2. Mapped each layer to concrete offensive techniques (process injection, DLL hijacking, PE manipulation).  
+3. Observed processes and threads using Task Manager and Process Hacker to understand execution context.  
+4. Studied virtual memory isolation and how the kernel mediates access between processes.  
+5. Analyzed DLL loading mechanisms (load-time vs run-time linking).  
+6. Reviewed the Portable Executable structure to understand how executables are mapped into memory.  
+7. Built a mental chain from user-mode API calls to kernel-mode system calls.  
+8. Demonstrated Windows API usage for a remote message-box injection (OpenProcess → VirtualAllocEx → WriteProcessMemory → CreateRemoteThread).
+
+---
+
+## 5) Results / Evidence (sanitized)
+- Clear distinction established between a **process** (container) and a **thread** (execution unit).  
+- Understood how virtual memory isolation works and how legitimate APIs allow controlled access to foreign memory spaces.  
+- Identified parallels between PE sections and attacker techniques (e.g., code caves, custom loaders, reflective loading).  
+- Demonstrated a controlled injection workflow using benign payload (message box):  
+  - Final state: payload executed successfully inside target process via remote thread creation.  
+- Established a practical mental model linking Windows internals with red-team abuse paths.
+
+---
+
+## 6) Recommended remediation
+- **Enforce proper process protections** (LSASS protection, user-mode API monitoring).  
+- **Implement strong handle access control** to prevent unauthorized `OpenProcess`.  
+- **Use EDR detection for RWX memory allocations** and suspicious call chains (e.g., VirtualAllocEx → WriteProcessMemory → CreateRemoteThread).  
+- **Apply DLL hardening**:  
+  - Safe DLL search mode  
+  - Signed libraries  
+  - Restrict writable directories in DLL search paths  
+- **Harden PE loading behavior** (ASLR, Control Flow Guard).  
+- **Use kernel-mode monitoring** to reduce bypasses of user-mode hooks.
+
+---
+
+## 7) Lessons learned
+- Process = identity + resources + address space; Thread = execution path with its own stack and context.  
+- Virtual memory is isolated but accessible via controlled kernel-mediated APIs (useful for injection).  
+- DLLs provide modular functionality but also a shared attack surface (hijacking, side-loading, injection).  
+- PE format acts as the blueprint that attackers and defenders manipulate and analyze.  
+- User-mode to kernel-mode transitions (APIs/syscalls) are choke points monitored by EDR.  
+- Traditional injection techniques are built on legitimate Windows primitives, not vulnerabilities.
+
+---
+
+## 8) Links / Resources
+- TryHackMe Room: *Red Team Internals (Windows)*  
+- Microsoft Documentation (Processes, Threads, Virtual Memory, DLLs, PE Format)  
+- Win32 API Reference  
+- My detailed Notion write-up (internal)
+
+---
