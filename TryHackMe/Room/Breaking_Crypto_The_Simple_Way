@@ -1,0 +1,101 @@
+# Breaking Crypto the simple way — TryHackMe - Web Application Red Teaming
+
+**Date:** 2025-12-19  
+**Type:** TryHackMe  
+**Scope:** Lab / Authorized only  
+
+---
+
+## 1) Context
+
+This lab focuses on exploiting **common cryptographic implementation mistakes** in web applications.  
+The objective is to understand why cryptography often fails in practice—not due to broken algorithms, but due to **misuse, weak configuration, or poor key management**.
+
+---
+
+## 2) Initial hypothesis
+
+Before starting the lab, I expected to find:
+
+- Weak or predictable cryptographic keys
+- Incorrect use of RSA (small / factorable moduli, reused primes)
+- Insecure hash usage (fast hashes, no salting)
+- Client-side exposure of secrets (API keys, AES keys)
+- Encryption used **without integrity**, enabling logic manipulation
+
+---
+
+## 3) Tools used
+
+- Python (crypto / math libraries)
+- Hash cracking utilities
+- Browser developer tools
+- Basic scripting for automation
+
+*(No sensitive scripts, credentials, or private tooling included)*
+
+---
+
+## 4) Approach (high level)
+
+- Review cryptographic context and identify **where crypto is used**
+- Inspect **key generation, storage, and trust boundaries**
+- Analyze RSA parameters for factorability or reuse
+- Evaluate hash algorithms and salting strategy
+- Inspect client-side code for leaked secrets
+- Test encrypted data flows for **missing integrity checks**
+- Exploit logic flaws enabled by cryptographic misuse rather than brute force
+
+---
+
+## 5) Results / Evidence (sanitized)
+
+Observed multiple high-impact cryptographic failures:
+
+- **RSA private keys recovered** after factorising weak moduli
+- **Hashes cracked efficiently** due to fast algorithms or missing salts
+- **Exposed AES / API keys** extracted directly from client-side code
+- **Privilege escalation** achieved via AES-CBC bit flipping
+- Successful exploitation validated through application behaviour (e.g. role change, decrypted content)
+
+No sensitive material or secrets are disclosed.
+
+---
+
+## 6) Recommended remediation
+
+- Use **strong, unpredictable key generation** with secure RNGs
+- Enforce **modern RSA configurations**:
+  - ≥2048-bit moduli
+  - Safe public exponent (65537)
+  - OAEP padding
+- Never use fast hashes for passwords:
+  - Prefer **Argon2, bcrypt, or PBKDF2**
+  - Always use unique salts
+- **Never embed secrets client-side**
+  - Store keys server-side or in a dedicated KMS
+- Always use **authenticated encryption**:
+  - AES-GCM / AES-CCM
+  - Or Encrypt-then-MAC (verify before decrypt)
+- Treat cryptography as a **system design concern**, not a drop-in feature
+
+---
+
+## 7) Lessons learned
+
+- Cryptography fails because of **human decisions**, not broken math
+- Strong algorithms provide no security if **keys are weak or exposed**
+- Hash choice must match the **threat model**
+- Client-side secrecy does not exist
+- Encryption without integrity is unsafe by design
+
+---
+
+## 8) Links / Resources
+
+- TryHackMe — Web Application Red Teaming (Classroom)
+- RSA and key generation best practices
+- OWASP Cryptographic Storage Cheat Sheet
+- Public write-up (if published)
+
+---
