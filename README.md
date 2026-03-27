@@ -1,7 +1,6 @@
 # 🚀 Pentest Journey — From 0 to Pentester
 
-Hi, I’m Nicolas — currently a Senior Product Owner (PMO-ready) in the luxury industry, 
-and on a parallel track I’m building expertise in offensive security (pentesting, bug bounty).  
+Hi
 
 This repository is my **public logbook** of technical progress: challenges solved, notes, 
 and write-ups. My goal is to reach a professional level in red teaming and bug bounty 
